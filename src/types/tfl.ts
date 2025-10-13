@@ -18,16 +18,32 @@ export interface TflStopPointDisruption {
 
 // Actual response from Line Disruption API
 export interface TflLineDisruption {
-  $type?: string; // TfL metadata
-  category: string; // e.g., "RealTime"
-  type: string; // e.g., "lineInfo", "routeInfo"
-  categoryDescription: string; // e.g., "RealTime"
-  description: string; // Human-readable disruption description
-  created?: string; // ISO date string (optional)
-  lastUpdate?: string; // ISO date string (optional)
-  affectedRoutes: any[]; // Currently empty arrays in real responses
-  affectedStops: any[]; // Currently empty arrays in real responses
-  closureText?: string; // e.g., "minorDelays"
+    $type?: string;
+    category: string;
+    type: string;
+    categoryDescription: string;
+    description: string;
+    created?: string;
+    lastUpdate?: string;
+    affectedRoutes: Array<{
+        $type: string;
+        id: string;
+        name: string;
+        direction?: string;
+        originationName: string;
+        destinationName: string;
+        isActive: boolean;
+    }>;
+    affectedStops: Array<{
+        $type: string;
+        id: string;
+        commonName: string;
+        placeType: string;
+        modes: string[];
+        stopType: string;
+        status: boolean;
+    }>;
+    closureText?: string;
 }
 
 // Union type for any TfL disruption
@@ -44,6 +60,43 @@ export interface StopPoint {
   lines?: LineInfo[];
   lineGroup?: LineGroup[];
   lineModeGroups?: LineModeGroup[];
+}
+
+export interface LineInfo {
+    id: string;
+    name: string;
+    modeName: string;
+    crowding?: {
+        $type: string;
+        type: string;
+    };
+    disruptions: TflLineDisruption[];
+    created?: string;
+    modified?: string;
+    lineStatuses: Array<{
+        $type: string;
+        id: number;
+        lineId: string;
+        statusSeverity: number;
+        statusSeverityDescription: string;
+        reason?: string;
+        validityPeriods: Array<{
+            $type: string;
+            fromDate: string;
+            toDate: string;
+            isNow: boolean;
+        }>;
+    }>;
+    routeSections: Array<{
+        $type: string;
+        originationName: string;
+        destinationName: string;
+    }>;
+    serviceTypes: Array<{
+        $type: string;
+        name: string;
+        uri: string;
+    }>;
 }
 
 export interface LineGroup {
@@ -86,7 +139,6 @@ export interface ProcessedDisruption {
   type: string;
   description: string;
   commonName?: string; // Stop name for stop point disruptions
-  severity: 'low' | 'medium' | 'high' | 'severe';
   mode: string; // bus, tube, rail, etc.
   startDate: Date;
   endDate: Date;
@@ -100,5 +152,4 @@ export interface RouteDisruptions {
   route: RouteDefinition;
   lineDisruptions: ProcessedDisruption[];
   stopDisruptions: ProcessedDisruption[];
-  overallStatus: 'good' | 'minor' | 'major' | 'severe';
 }

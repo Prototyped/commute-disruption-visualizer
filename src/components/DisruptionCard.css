@@ -34,26 +34,6 @@
   letter-spacing: 0.5px;
 }
 
-.disruption-badge.disruption-severe {
-  background-color: #dc3545;
-  color: white;
-}
-
-.disruption-badge.disruption-high {
-  background-color: #fd7e14;
-  color: white;
-}
-
-.disruption-badge.disruption-medium {
-  background-color: #ffc107;
-  color: #000;
-}
-
-.disruption-badge.disruption-low {
-  background-color: #17a2b8;
-  color: white;
-}
-
 .disruption-category {
   font-size: 0.875rem;
   color: #6c757d;
@@ -134,23 +114,6 @@
 .disruption-time {
   font-size: 0.75rem;
   color: #6c757d;
-}
-
-/* Severity-specific card borders */
-.disruption-card.disruption-severe {
-  border-left: 4px solid #dc3545;
-}
-
-.disruption-card.disruption-high {
-  border-left: 4px solid #fd7e14;
-}
-
-.disruption-card.disruption-medium {
-  border-left: 4px solid #ffc107;
-}
-
-.disruption-card.disruption-low {
-  border-left: 4px solid #17a2b8;
 }
 
 @media (max-width: 768px) {

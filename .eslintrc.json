@@ -18,6 +18,7 @@
   "env": {
     "node": true,
     "es2022": true,
+    "browser": true,
     "jest": true
   }
 }

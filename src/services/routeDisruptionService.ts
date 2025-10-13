@@ -90,17 +90,10 @@ export class RouteDisruptionService {
       disruption.stopPointId && routeStopIds.includes(disruption.stopPointId)
     );
 
-    // Determine overall route status
-    const overallStatus = this.determineOverallStatus([
-      ...relevantLineDisruptions,
-      ...relevantStopDisruptions
-    ]);
-
     return {
       route,
       lineDisruptions: relevantLineDisruptions,
       stopDisruptions: relevantStopDisruptions,
-      overallStatus
     };
   }
 
@@ -129,41 +122,6 @@ export class RouteDisruptionService {
     });
 
     return Array.from(stopIds);
-  }
-
-  /**
-   * Determine overall route status based on disruptions
-   */
-  private determineOverallStatus(
-    disruptions: ProcessedDisruption[]
-  ): 'good' | 'minor' | 'major' | 'severe' {
-    if (disruptions.length === 0) {
-      return 'good';
-    }
-
-    // Filter only active disruptions
-    const activeDisruptions = disruptions.filter(d => d.isActive);
-    
-    if (activeDisruptions.length === 0) {
-      return 'good';
-    }
-
-    // Get the highest severity level
-    const severities = activeDisruptions.map(d => d.severity);
-    
-    if (severities.includes('severe')) {
-      return 'severe';
-    }
-    
-    if (severities.includes('high')) {
-      return 'major';
-    }
-    
-    if (severities.includes('medium')) {
-      return 'minor';
-    }
-
-    return 'minor'; // Default for any active disruptions
   }
 
   /**

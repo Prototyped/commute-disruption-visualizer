@@ -17,27 +17,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
 }) => {
   const [showInactiveDisruptions, setShowInactiveDisruptions] = useState(false);
 
-  const { route, lineDisruptions, stopDisruptions, overallStatus } = routeDisruptions;
-
-  const getStatusClass = (status: string): string => {
-    switch (status) {
-      case 'severe': return 'status-severe';
-      case 'major': return 'status-major';
-      case 'minor': return 'status-minor';
-      case 'good': return 'status-good';
-      default: return 'status-unknown';
-    }
-  };
-
-  const getStatusLabel = (status: string): string => {
-    switch (status) {
-      case 'severe': return 'Severe Disruptions';
-      case 'major': return 'Major Disruptions';
-      case 'minor': return 'Minor Disruptions';
-      case 'good': return 'Good Service';
-      default: return 'Unknown Status';
-    }
-  };
+  const { route, lineDisruptions, stopDisruptions } = routeDisruptions;
 
   const allDisruptions = [...lineDisruptions, ...stopDisruptions];
   const activeDisruptions = allDisruptions.filter(d => d.isActive);
@@ -46,7 +26,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
   const disruptionsToShow = showInactiveDisruptions ? allDisruptions : activeDisruptions;
 
   return (
-    <div className={`route-card ${getStatusClass(overallStatus)}`}>
+    <div className={"route-card"}>
       <div className="route-header" onClick={onToggleExpand}>
         <div className="route-info">
           <h3 className="route-name">{route.name}</h3>
@@ -54,10 +34,6 @@ const RouteCard: React.FC<RouteCardProps> = ({
         </div>
         
         <div className="route-status">
-          <span className={`status-badge ${getStatusClass(overallStatus)}`}>
-            {getStatusLabel(overallStatus)}
-          </span>
-          
           {activeDisruptions.length > 0 && (
             <span className="disruption-count">
               {activeDisruptions.length} active disruption{activeDisruptions.length !== 1 ? 's' : ''}
@@ -104,7 +80,6 @@ const RouteCard: React.FC<RouteCardProps> = ({
                     <DisruptionCard
                       key={disruption.id}
                       disruption={disruption}
-                      showAffectedItems={false}
                     />
                   ))
                 ) : (

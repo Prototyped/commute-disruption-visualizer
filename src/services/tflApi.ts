@@ -95,8 +95,6 @@ export class TflApiClient {
   }
 
   private processLineDisruption(disruption: TflLineDisruption): ProcessedDisruption {
-    const severity = this.determineSeverityFromLine(disruption);
-    
     // Use created/lastUpdate if available, otherwise use current time
     const startDate = disruption.created ? new Date(disruption.created) : new Date();
     const endDate = disruption.lastUpdate ? new Date(disruption.lastUpdate) : new Date();
@@ -105,7 +103,6 @@ export class TflApiClient {
       id: `line-${disruption.category}-${disruption.created || Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: disruption.type,
       description: disruption.description,
-      severity,
       mode: this.inferModeFromDescription(disruption.description),
       startDate,
       endDate,
@@ -116,7 +113,6 @@ export class TflApiClient {
   }
 
   private processStopPointDisruption(disruption: TflStopPointDisruption): ProcessedDisruption {
-    const severity = this.determineSeverityFromStopPoint(disruption);
     const startDate = new Date(disruption.fromDate);
     const endDate = new Date(disruption.toDate);
 
@@ -125,7 +121,6 @@ export class TflApiClient {
       type: disruption.type,
       description: disruption.description,
       commonName: disruption.commonName,
-      severity,
       mode: disruption.mode,
       startDate,
       endDate,
@@ -133,81 +128,6 @@ export class TflApiClient {
       source: 'stopPoint',
       stopPointId: disruption.atcoCode
     };
-  }
-
-  private determineSeverityFromStopPoint(disruption: TflStopPointDisruption): 'low' | 'medium' | 'high' | 'severe' {
-    const type = disruption.type?.toLowerCase() || '';
-    const description = disruption.description?.toLowerCase() || '';
-
-    // Severe disruptions - closures
-    if (
-      type.includes('closure') ||
-      description.includes('closed') ||
-      description.includes('closure')
-    ) {
-      return 'severe';
-    }
-
-    // High disruptions
-    if (
-      description.includes('severe') ||
-      description.includes('major delay') ||
-      description.includes('significant')
-    ) {
-      return 'high';
-    }
-
-    // Medium disruptions
-    if (
-      type.includes('delay') ||
-      description.includes('delay') ||
-      description.includes('minor') ||
-      description.includes('reduced service') ||
-      description.includes('diverted')
-    ) {
-      return 'medium';
-    }
-
-    // Default to low for everything else
-    return 'low';
-  }
-
-  private determineSeverityFromLine(disruption: TflLineDisruption): 'low' | 'medium' | 'high' | 'severe' {
-    const description = disruption.description?.toLowerCase() || '';
-    const closureText = disruption.closureText?.toLowerCase() || '';
-
-    // Severe disruptions
-    if (
-      description.includes('suspended') ||
-      description.includes('closed') ||
-      description.includes('severe delays') ||
-      closureText.includes('closure') ||
-      closureText.includes('suspended')
-    ) {
-      return 'severe';
-    }
-
-    // High disruptions
-    if (
-      description.includes('major delays') ||
-      description.includes('significant') ||
-      closureText.includes('major')
-    ) {
-      return 'high';
-    }
-
-    // Medium disruptions
-    if (
-      description.includes('minor delays') ||
-      description.includes('delays') ||
-      closureText.includes('minordelays') ||
-      closureText.includes('delays')
-    ) {
-      return 'medium';
-    }
-
-    // Default to low for everything else
-    return 'low';
   }
 
   private inferModeFromDescription(description: string): string {

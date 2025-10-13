@@ -1,7 +1,7 @@
 {
-  "name": "typescript-project",
-  "version": "1.0.0",
-  "description": "A TypeScript project with build system",
+  "name": "commute-disruption-visualizer",
+  "version": "0.0.1",
+  "description": "Visualizer of disruptions to Amit's commute",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -19,7 +19,7 @@
     "typescript",
     "nodejs"
   ],
-  "author": "",
+  "author": "Prototyped",
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.0",

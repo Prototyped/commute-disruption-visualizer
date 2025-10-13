@@ -176,7 +176,6 @@ describe('TflApiClient', () => {
       expect(processed[0]).toMatchObject({
         type: 'routeInfo',
         description: 'Central Line: Minor delays between Leytonstone and Epping due to train cancellations.',
-        severity: 'medium', // Should detect "minor delays"
         mode: 'tube', // Should detect "Central Line"
         isActive: false, // Historical timestamp makes it inactive
         source: 'line',
@@ -211,7 +210,6 @@ describe('TflApiClient', () => {
         type: 'Closure',
         description: 'Bus stop closed due to major works',
         commonName: 'Kingfisher Way',
-        severity: 'severe', // Should detect "closure"
         mode: 'bus',
         isActive: true,
         source: 'stopPoint',
@@ -220,63 +218,6 @@ describe('TflApiClient', () => {
       expect(processed[0].startDate).toBeInstanceOf(Date);
       expect(processed[0].endDate).toBeInstanceOf(Date);
       expect(processed[0].id).toBeDefined();
-    });
-
-    it('should determine severity levels correctly', () => {
-      const testCases = [
-        {
-          type: 'Closure',
-          description: 'Bus stop closed',
-          expectedSeverity: 'severe'
-        },
-        {
-          type: 'Information',
-          description: 'Stop closed due to works',
-          expectedSeverity: 'severe'
-        },
-        {
-          type: 'Information',
-          description: 'Severe delays at this stop',
-          expectedSeverity: 'high'
-        },
-        {
-          type: 'Information',
-          description: 'Major delays expected',
-          expectedSeverity: 'high'
-        },
-        {
-          type: 'Information',
-          description: 'Minor delays possible',
-          expectedSeverity: 'medium'
-        },
-        {
-          type: 'Information',
-          description: 'Services diverted',
-          expectedSeverity: 'medium'
-        },
-        {
-          type: 'Information',
-          description: 'Good service',
-          expectedSeverity: 'low'
-        }
-      ];
-
-      testCases.forEach(({ type, description, expectedSeverity }) => {
-        const disruption: TflStopPointDisruption = {
-          atcoCode: '490G00008746',
-          fromDate: '2024-01-01T07:00:00Z',
-          toDate: '2099-12-31T23:59:59Z',
-          description,
-          commonName: 'Test Stop',
-          type,
-          mode: 'bus',
-          stationAtcoCode: '490G00008746',
-          appearance: 'Information'
-        };
-
-        const processed = client.processStopPointDisruptions([disruption]);
-        expect(processed[0].severity).toBe(expectedSeverity);
-      });
     });
   });
 });

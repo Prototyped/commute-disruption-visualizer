@@ -87,17 +87,6 @@ const App: React.FC = () => {
   const getRouteDisruptions = (routeId: string) => 
     state.routeDisruptions.find(rd => rd.route.id === routeId);
 
-  const getOverallStatus = () => {
-    if (state.routeDisruptions.length === 0) return 'unknown';
-    
-    const statuses = state.routeDisruptions.map(rd => rd.overallStatus);
-    
-    if (statuses.includes('severe')) return 'severe';
-    if (statuses.includes('major')) return 'major';
-    if (statuses.includes('minor')) return 'minor';
-    return 'good';
-  };
-
   const formatLastUpdated = (date: Date) => {
     return date.toLocaleString('en-GB', {
       day: '2-digit',
@@ -109,23 +98,13 @@ const App: React.FC = () => {
     });
   };
 
-  const getStatusEmoji = (status: string) => {
-    switch (status) {
-      case 'severe': return '🔴';
-      case 'major': return '🟠';
-      case 'minor': return '🟡';
-      case 'good': return '🟢';
-      default: return '⚪';
-    }
-  };
-
   return (
     <div className="app">
       <header className="app-header">
         <div className="header-content">
           <div className="title-section">
             <h1 className="app-title">
-              {getStatusEmoji(getOverallStatus())} TfL Disruption Monitor
+              TfL Disruption Monitor
             </h1>
             <p className="app-subtitle">
               Real-time disruption information for key London transport routes
