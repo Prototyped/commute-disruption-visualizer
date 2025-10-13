@@ -47,7 +47,7 @@ export class TflApiClient {
     }
 
     // TfL API has URL length limits, so batch requests if needed
-    const batchSize = 50; // Conservative batch size
+    const batchSize = 10; // Conservative batch size
     const batches: string[][] = [];
     
     for (let i = 0; i < stopPointIds.length; i += batchSize) {
