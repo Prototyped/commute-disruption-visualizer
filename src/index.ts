@@ -1,21 +1,14 @@
-/**
- * Main entry point for the TypeScript application
- */
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
 
-import { greet } from './utils/greeting';
-import { Calculator } from './utils/calculator';
+const root = ReactDOM.createRoot(
+  document.getElementById('root') as HTMLElement
+);
 
-function main(): void {
-  console.log(greet('TypeScript Build System'));
-  
-  const calc = new Calculator();
-  const result = calc.add(5, 3);
-  console.log(`5 + 3 = ${result}`);
-}
-
-// Run the application
-if (require.main === module) {
-  main();
-}
-
-export { main };
+root.render(
+  React.createElement(React.StrictMode, null,
+    React.createElement(App)
+  )
+);

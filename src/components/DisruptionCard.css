@@ -1,0 +1,173 @@
+.disruption-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+.disruption-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.disruption-card.disruption-inactive {
+  opacity: 0.7;
+  border-color: #d0d0d0;
+}
+
+.disruption-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.disruption-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.disruption-badge.disruption-severe {
+  background-color: #dc3545;
+  color: white;
+}
+
+.disruption-badge.disruption-high {
+  background-color: #fd7e14;
+  color: white;
+}
+
+.disruption-badge.disruption-medium {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.disruption-badge.disruption-low {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.disruption-category {
+  font-size: 0.875rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.disruption-inactive-badge {
+  padding: 2px 6px;
+  background-color: #6c757d;
+  color: white;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.disruption-content {
+  margin-bottom: 12px;
+}
+
+.disruption-description {
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+  color: #212529;
+}
+
+.disruption-affected {
+  margin-bottom: 8px;
+}
+
+.disruption-affected strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #495057;
+  font-size: 0.875rem;
+}
+
+.disruption-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.disruption-tag {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.line-tag {
+  background-color: #e9ecef;
+  color: #495057;
+  border: 1px solid #ced4da;
+}
+
+.stop-tag {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+}
+
+.more-tag {
+  background-color: #6c757d;
+  color: white;
+}
+
+.disruption-footer {
+  border-top: 1px solid #e9ecef;
+  padding-top: 8px;
+}
+
+.disruption-times {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.disruption-time {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+/* Severity-specific card borders */
+.disruption-card.disruption-severe {
+  border-left: 4px solid #dc3545;
+}
+
+.disruption-card.disruption-high {
+  border-left: 4px solid #fd7e14;
+}
+
+.disruption-card.disruption-medium {
+  border-left: 4px solid #ffc107;
+}
+
+.disruption-card.disruption-low {
+  border-left: 4px solid #17a2b8;
+}
+
+@media (max-width: 768px) {
+  .disruption-card {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .disruption-header {
+    margin-bottom: 8px;
+  }
+  
+  .disruption-content {
+    margin-bottom: 8px;
+  }
+  
+  .disruption-times {
+    font-size: 0.7rem;
+  }
+}
