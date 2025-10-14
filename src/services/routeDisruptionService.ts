@@ -17,14 +17,14 @@ export class RouteDisruptionService {
    */
   async getAllRouteDisruptions(): Promise<RouteDisruptions[]> {
     try {
-      // Fetch all line and stop point disruptions in parallel
-      const [lineDisruptions, stopDisruptions] = await Promise.all([
-        this.tflClient.getLineDisruptions(ALL_LINE_IDS),
+      // Fetch all line status and stop point disruptions in parallel
+      const [lineStatusResponses, stopDisruptions] = await Promise.all([
+        this.tflClient.getLineStatus(ALL_LINE_IDS),
         this.tflClient.getStopPointDisruptions(getAllStopPointIds())
       ]);
 
       // Process the raw disruptions using the correct methods
-      const processedLineDisruptions = this.tflClient.processLineDisruptions(lineDisruptions);
+      const processedLineDisruptions = this.tflClient.processLineStatusResponses(lineStatusResponses);
       const processedStopDisruptions = this.tflClient.processStopPointDisruptions(stopDisruptions);
 
       // Map disruptions to routes
@@ -52,13 +52,13 @@ export class RouteDisruptionService {
       const stopPointIds = this.getRouteStopPointIds(route);
 
       // Fetch disruptions
-      const [lineDisruptions, stopDisruptions] = await Promise.all([
-        this.tflClient.getLineDisruptions(lineIds),
+      const [lineStatusResponses, stopDisruptions] = await Promise.all([
+        this.tflClient.getLineStatus(lineIds),
         this.tflClient.getStopPointDisruptions(stopPointIds)
       ]);
 
       // Process the raw disruptions using the correct methods
-      const processedLineDisruptions = this.tflClient.processLineDisruptions(lineDisruptions);
+      const processedLineDisruptions = this.tflClient.processLineStatusResponses(lineStatusResponses);
       const processedStopDisruptions = this.tflClient.processStopPointDisruptions(stopDisruptions);
 
       return this.mapDisruptionsToRoute(route, processedLineDisruptions, processedStopDisruptions);
@@ -80,10 +80,25 @@ export class RouteDisruptionService {
     const routeStopIds = this.getRouteStopPointIds(route);
 
     // Filter disruptions relevant to this route
-    const relevantLineDisruptions = lineDisruptions.filter(disruption =>
-      // For line disruptions, check if the lineId matches any route segment
-      disruption.lineId && routeLineIds.some(routeLineId => routeLineId.includes(disruption.lineId!))
-    );
+    const relevantLineDisruptions = lineDisruptions.filter(disruption => {
+      // First check if the lineId matches any route segment
+      if (disruption.lineId && routeLineIds.some(routeLineId => routeLineId.includes(disruption.lineId!))) {
+        // If we have specific affected stop points, use those (most granular)
+        if (disruption.affectedStopPoints && disruption.affectedStopPoints.length > 0) {
+          // Only include if at least one affected stop point is in our route
+          return disruption.affectedStopPoints.some(stopId => routeStopIds.includes(stopId));
+        }
+        
+        // Fallback: Check if any affected routes match our route definition
+        if (disruption.affectedRoutes && disruption.affectedRoutes.length > 0) {
+          return this.isRouteAffectedByDisruption(route, disruption);
+        }
+        
+        // If no affected routes or stop points specified, include the disruption (affects entire line)
+        return true;
+      }
+      return false;
+    });
 
     const relevantStopDisruptions = stopDisruptions.filter(disruption =>
       // For stop point disruptions, check if either the stopPointId (atcoCode) or stationAtcoCode matches any route stop
@@ -96,6 +111,39 @@ export class RouteDisruptionService {
       lineDisruptions: relevantLineDisruptions,
       stopDisruptions: relevantStopDisruptions,
     };
+  }
+
+  /**
+   * Check if a route is affected by a disruption based on affected routes and stop points
+   */
+  private isRouteAffectedByDisruption(route: RouteDefinition, disruption: ProcessedDisruption): boolean {
+    const routeStopIds = this.getRouteStopPointIds(route);
+    
+    // Check each affected route from the TfL API
+    if (disruption.affectedRoutes) {
+      for (const affectedRoute of disruption.affectedRoutes) {
+        // Check if any stop points in the affected route match our monitored route
+        if (affectedRoute.routeSectionNaptanEntrySequence) {
+          for (const entry of affectedRoute.routeSectionNaptanEntrySequence) {
+            if (entry.stopPoint) {
+              // Check all possible identifiers for the stop point
+              const stopIdentifiers = [
+                entry.stopPoint.naptanId,
+                entry.stopPoint.id,
+                entry.stopPoint.stationNaptan
+              ].filter((id): id is string => Boolean(id)); // Remove undefined values with type guard
+              
+              // If any identifier matches our route stop points, this route is affected
+              if (stopIdentifiers.some(stopId => routeStopIds.includes(stopId))) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return false;
   }
 
   /**

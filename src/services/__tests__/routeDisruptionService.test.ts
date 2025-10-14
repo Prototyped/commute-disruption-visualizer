@@ -1,6 +1,6 @@
 import { RouteDisruptionService } from '../routeDisruptionService';
 import { TflApiClient } from '../tflApi';
-import { TflStopPointDisruption, TflLineDisruption, ProcessedDisruption } from '../../types/tfl';
+import { TflStopPointDisruption, TflLineStatusResponse, ProcessedDisruption } from '../../types/tfl';
 
 // Mock the TfL API client
 jest.mock('../tflApi');
@@ -14,9 +14,9 @@ describe('RouteDisruptionService', () => {
     mockTflClient = new TflApiClient() as jest.Mocked<TflApiClient>;
 
     // Mock all the public methods
-    mockTflClient.getLineDisruptions = jest.fn();
+    mockTflClient.getLineStatus = jest.fn();
     mockTflClient.getStopPointDisruptions = jest.fn();
-    mockTflClient.processLineDisruptions = jest.fn();
+    mockTflClient.processLineStatusResponses = jest.fn();
     mockTflClient.processStopPointDisruptions = jest.fn();
 
     service = new RouteDisruptionService(mockTflClient);
@@ -24,20 +24,20 @@ describe('RouteDisruptionService', () => {
 
   describe('getAllRouteDisruptions', () => {
     it('should fetch and process disruptions for all routes', async () => {
-      const mockLineDisruptions: TflLineDisruption[] = [];
+      const mockLineStatusResponses: TflLineStatusResponse[] = [];
       const mockStopDisruptions: TflStopPointDisruption[] = [];
 
       const mockProcessedLineDisruptions: ProcessedDisruption[] = [];
       const mockProcessedStopDisruptions: ProcessedDisruption[] = [];
 
-      mockTflClient.getLineDisruptions.mockResolvedValue(mockLineDisruptions);
+      mockTflClient.getLineStatus.mockResolvedValue(mockLineStatusResponses);
       mockTflClient.getStopPointDisruptions.mockResolvedValue(mockStopDisruptions);
-      mockTflClient.processLineDisruptions.mockReturnValue(mockProcessedLineDisruptions);
+      mockTflClient.processLineStatusResponses.mockReturnValue(mockProcessedLineDisruptions);
       mockTflClient.processStopPointDisruptions.mockReturnValue(mockProcessedStopDisruptions);
 
       const result = await service.getAllRouteDisruptions();
 
-      expect(mockTflClient.getLineDisruptions).toHaveBeenCalledWith([
+      expect(mockTflClient.getLineStatus).toHaveBeenCalledWith([
         'metropolitan', 'hammersmith-city', 'circle', 'bakerloo', 'elizabeth', '112', '206', '224'
       ]);
       expect(mockTflClient.getStopPointDisruptions).toHaveBeenCalledWith(
@@ -52,7 +52,7 @@ describe('RouteDisruptionService', () => {
     });
 
     it('should handle API errors gracefully', async () => {
-      mockTflClient.getLineDisruptions.mockRejectedValue(new Error('API Error'));
+      mockTflClient.getLineStatus.mockRejectedValue(new Error('API Error'));
 
       await expect(service.getAllRouteDisruptions())
         .rejects.toThrow('Failed to fetch route disruptions: API Error');
@@ -61,21 +61,21 @@ describe('RouteDisruptionService', () => {
 
   describe('getRouteDisruptions', () => {
     it('should fetch disruptions for a specific route', async () => {
-      const mockLineDisruptions: TflLineDisruption[] = [];
+      const mockLineStatusResponses: TflLineStatusResponse[] = [];
       const mockStopDisruptions: TflStopPointDisruption[] = [];
       const mockProcessedLineDisruptions: ProcessedDisruption[] = [];
       const mockProcessedStopDisruptions: ProcessedDisruption[] = [];
 
-      mockTflClient.getLineDisruptions.mockResolvedValue(mockLineDisruptions);
+      mockTflClient.getLineStatus.mockResolvedValue(mockLineStatusResponses);
       mockTflClient.getStopPointDisruptions.mockResolvedValue(mockStopDisruptions);
-      mockTflClient.processLineDisruptions.mockReturnValue(mockProcessedLineDisruptions);
+      mockTflClient.processLineStatusResponses.mockReturnValue(mockProcessedLineDisruptions);
       mockTflClient.processStopPointDisruptions.mockReturnValue(mockProcessedStopDisruptions);
 
       const result = await service.getRouteDisruptions('route1-outbound');
 
       expect(result).toBeDefined();
       expect(result!.route.id).toBe('route1-outbound');
-      expect(mockTflClient.getLineDisruptions).toHaveBeenCalledWith(['206', 'metropolitan']);
+      expect(mockTflClient.getLineStatus).toHaveBeenCalledWith(['206', 'metropolitan']);
     });
 
     it('should throw error for invalid route ID', async () => {
@@ -84,7 +84,7 @@ describe('RouteDisruptionService', () => {
     });
 
     it('should handle API errors for specific route', async () => {
-      mockTflClient.getLineDisruptions.mockRejectedValue(new Error('API Error'));
+      mockTflClient.getLineStatus.mockRejectedValue(new Error('API Error'));
 
       await expect(service.getRouteDisruptions('route1-outbound'))
         .rejects.toThrow('Failed to fetch disruptions for route route1-outbound: API Error');

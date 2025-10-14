@@ -16,7 +16,112 @@ export interface TflStopPointDisruption {
   appearance: string; // e.g., "Information"
 }
 
-// Actual response from Line Disruption API
+// Actual response from Line Status API
+export interface TflLineStatusResponse {
+    $type?: string;
+    id: string;
+    name: string;
+    modeName: string;
+    disruptions?: TflLineDisruption[];
+    created: string;
+    modified: string;
+    lineStatuses: TflLineStatus[];
+    routeSections?: TflRouteSection[];
+    serviceTypes?: TflServiceType[];
+    crowding?: unknown;
+}
+
+export interface TflLineStatus {
+    $type?: string;
+    id: number;
+    lineId: string;
+    statusSeverity: number;
+    statusSeverityDescription: string;
+    reason?: string;
+    created: string;
+    validityPeriods: TflValidityPeriod[];
+    disruption?: TflDisruptionDetail;
+}
+
+export interface TflValidityPeriod {
+    $type?: string;
+    fromDate: string;
+    toDate: string;
+    isNow: boolean;
+}
+
+export interface TflDisruptionDetail {
+    $type?: string;
+    category: string;
+    categoryDescription: string;
+    description: string;
+    created: string;
+    affectedRoutes?: TflAffectedRoute[];
+    affectedStops?: TflAffectedStop[];
+    closureText?: string;
+}
+
+export interface TflAffectedRoute {
+    $type?: string;
+    id: string;
+    name: string;
+    direction: string;
+    originationName: string;
+    destinationName: string;
+    isEntireRouteSection: boolean;
+    routeSectionNaptanEntrySequence: TflRouteSectionNaptanEntry[];
+}
+
+export interface TflRouteSectionNaptanEntry {
+    $type?: string;
+    ordinal: number;
+    stopPoint: TflStopPointDetail;
+}
+
+export interface TflStopPointDetail {
+    $type?: string;
+    naptanId: string;
+    indicator?: string;
+    stopLetter?: string;
+    modes: string[];
+    icsCode: string;
+    stationNaptan?: string;
+    lines: unknown[];
+    lineGroup: unknown[];
+    lineModeGroups: unknown[];
+    status: boolean;
+    id: string;
+    commonName: string;
+    placeType: string;
+    additionalProperties: unknown[];
+    children: unknown[];
+    lat: number;
+    lon: number;
+}
+
+export interface TflAffectedStop {
+    $type?: string;
+    id: string;
+    commonName: string;
+    placeType: string;
+    modes: string[];
+    stopType?: string;
+    status: boolean;
+}
+
+export interface TflRouteSection {
+    $type?: string;
+    originationName: string;
+    destinationName: string;
+}
+
+export interface TflServiceType {
+    $type?: string;
+    name: string;
+    uri: string;
+}
+
+// Legacy interface for Line Disruption API (to be removed)
 export interface TflLineDisruption {
     $type?: string;
     category: string;
@@ -147,6 +252,8 @@ export interface ProcessedDisruption {
   stopPointId?: string; // For stop point disruptions (from atcoCode)
   stationAtcoCode?: string; // For stop point disruptions (from stationAtcoCode)
   lineId?: string; // For line disruptions
+  affectedStopPoints?: string[]; // For line status disruptions - list of affected stop point IDs
+  affectedRoutes?: TflAffectedRoute[]; // Original affected routes data from TfL API
 }
 
 export interface RouteDisruptions {

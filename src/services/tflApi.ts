@@ -1,4 +1,4 @@
-import { TflStopPointDisruption, TflLineDisruption, ProcessedDisruption } from '../types/tfl';
+import { TflStopPointDisruption, TflLineStatusResponse, TflLineStatus, TflDisruptionDetail, ProcessedDisruption } from '../types/tfl';
 
 /**
  * TfL API client for fetching disruption data
@@ -14,28 +14,45 @@ export class TflApiClient {
   }
 
   /**
-   * Fetch line disruptions for given line IDs
+   * Fetch line status for given line IDs with detailed disruption information
    */
-  async getLineDisruptions(lineIds: string[]): Promise<TflLineDisruption[]> {
+  async getLineStatus(lineIds: string[]): Promise<TflLineStatusResponse[]> {
     if (lineIds.length === 0) {
       return [];
     }
 
-    const url = `${this.baseUrl}/Line/${lineIds.join(',')}/Disruption`;
+    // TfL API has URL length limits, so batch requests if needed
+    const batchSize = 10; // Conservative batch size
+    const batches: string[][] = [];
     
-    try {
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`TfL API error: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      console.error('Error fetching line disruptions:', error);
-      throw new Error(`Failed to fetch line disruptions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    for (let i = 0; i < lineIds.length; i += batchSize) {
+      batches.push(lineIds.slice(i, i + batchSize));
     }
+
+    const allLineStatuses: TflLineStatusResponse[] = [];
+
+    for (const batch of batches) {
+      const url = `${this.baseUrl}/Line/${batch.join(',')}/Status?detail=true`;
+      
+      try {
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          console.warn(`TfL API warning for line status batch: ${response.status} ${response.statusText}`);
+          continue; // Continue with other batches
+        }
+        
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          allLineStatuses.push(...data);
+        }
+      } catch (error) {
+        console.error('Error fetching line status batch:', error);
+        // Continue with other batches rather than failing completely
+      }
+    }
+
+    return allLineStatuses;
   }
 
   /**
@@ -88,28 +105,98 @@ export class TflApiClient {
   }
 
   /**
-   * Process line disruptions into our internal format
+   * Process line status responses into our internal format
    */
-  processLineDisruptions(disruptions: TflLineDisruption[]): ProcessedDisruption[] {
-    return disruptions.map(disruption => this.processLineDisruption(disruption));
+  processLineStatusResponses(lineStatuses: TflLineStatusResponse[]): ProcessedDisruption[] {
+    const allDisruptions: ProcessedDisruption[] = [];
+    
+    for (const lineStatus of lineStatuses) {
+      // Extract disruptions from lineStatuses array
+      for (const status of lineStatus.lineStatuses) {
+        if (status.disruption) {
+          const disruption = this.processLineStatusDisruption(status, lineStatus.id, lineStatus.modeName);
+          if (disruption) {
+            allDisruptions.push(disruption);
+          }
+        }
+      }
+      
+      // Also check the optional top-level disruptions array (if present)
+      if (lineStatus.disruptions && lineStatus.disruptions.length > 0) {
+        // Handle legacy disruptions if present
+        console.warn('Legacy disruptions array found in line status response');
+      }
+    }
+    
+    return allDisruptions;
   }
 
-  private processLineDisruption(disruption: TflLineDisruption): ProcessedDisruption {
-    // Use created/lastUpdate if available, otherwise use current time
-    const startDate = disruption.created ? new Date(disruption.created) : new Date();
-    const endDate = disruption.lastUpdate ? new Date(disruption.lastUpdate) : new Date();
+  private processLineStatusDisruption(status: TflLineStatus, lineId: string, modeName: string): ProcessedDisruption | null {
+    if (!status.disruption) {
+      return null;
+    }
+
+    const disruption = status.disruption;
+    
+    // Extract dates from validity periods
+    const validityPeriod = status.validityPeriods?.[0];
+    const startDate = validityPeriod?.fromDate ? new Date(validityPeriod.fromDate) : new Date(disruption.created);
+    const endDate = validityPeriod?.toDate ? new Date(validityPeriod.toDate) : new Date();
 
     return {
-      id: `line-${disruption.category}-${disruption.created || Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: disruption.type,
+      id: `linestatus-${lineId}-${disruption.created}-${Math.random().toString(36).substr(2, 9)}`,
+      type: status.statusSeverityDescription,
       description: disruption.description,
-      mode: this.inferModeFromDescription(disruption.description),
+      mode: modeName,
       startDate,
       endDate,
-      isActive: this.isLineDisruptionActive(disruption),
+      isActive: this.isLineStatusDisruptionActive(status),
       source: 'line',
-      lineId: this.extractLineIdFromDescription(disruption.description)
+      lineId: lineId,
+      affectedStopPoints: this.extractAffectedStopPoints(disruption),
+      affectedRoutes: disruption.affectedRoutes
     };
+  }
+
+  /**
+   * Extract affected stop points from a line status disruption
+   */
+  private extractAffectedStopPoints(disruption: TflDisruptionDetail): string[] {
+    const affectedStops: string[] = [];
+    
+    // Extract from affectedRoutes -> routeSectionNaptanEntrySequence (primary source)
+    if (disruption.affectedRoutes) {
+      for (const route of disruption.affectedRoutes) {
+        if (route.routeSectionNaptanEntrySequence) {
+          for (const entry of route.routeSectionNaptanEntrySequence) {
+            if (entry.stopPoint) {
+              // Use naptanId as the primary identifier
+              affectedStops.push(entry.stopPoint.naptanId);
+              // Also include id if different from naptanId
+              if (entry.stopPoint.id && entry.stopPoint.id !== entry.stopPoint.naptanId) {
+                affectedStops.push(entry.stopPoint.id);
+              }
+              // Also include stationNaptan if different and present
+              if (entry.stopPoint.stationNaptan && 
+                  entry.stopPoint.stationNaptan !== entry.stopPoint.naptanId &&
+                  entry.stopPoint.stationNaptan !== entry.stopPoint.id) {
+                affectedStops.push(entry.stopPoint.stationNaptan);
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Extract from affectedStops (fallback, usually empty)
+    if (disruption.affectedStops) {
+      for (const stop of disruption.affectedStops) {
+        affectedStops.push(stop.id);
+      }
+    }
+    
+    // Remove duplicates
+    return [...new Set(affectedStops)];
   }
 
   private processStopPointDisruption(disruption: TflStopPointDisruption): ProcessedDisruption {
@@ -168,19 +255,25 @@ export class TflApiClient {
     return undefined;
   }
 
-  private isLineDisruptionActive(disruption: TflLineDisruption): boolean {
-    // For line disruptions, if there's a lastUpdate, assume it's active if recent
-    if (disruption.lastUpdate) {
-      const lastUpdate = new Date(disruption.lastUpdate);
-      const now = new Date();
-      const hoursDiff = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+  private isLineStatusDisruptionActive(status: TflLineStatus): boolean {
+    // Check validity periods first
+    for (const period of status.validityPeriods) {
+      if (period.isNow) {
+        return true;
+      }
       
-      // Consider active if updated within last 24 hours
-      return hoursDiff <= 24;
+      // Also check if we're within the validity period
+      const now = new Date();
+      const fromDate = new Date(period.fromDate);
+      const toDate = new Date(period.toDate);
+      
+      if (now >= fromDate && now <= toDate) {
+        return true;
+      }
     }
     
-    // If no timestamp info, assume active for real-time disruptions
-    return disruption.category === 'RealTime';
+    // If no valid periods, check if it's a real-time disruption
+    return status.disruption?.category === 'RealTime';
   }
 
   private isStopPointDisruptionActive(disruption: TflStopPointDisruption): boolean {

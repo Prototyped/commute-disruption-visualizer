@@ -354,7 +354,36 @@ This application was developed following a systematic approach:
 
 ## Recent Enhancements
 
-### Stop Point Identifier Handling (Latest)
+### Line Status API Migration (Latest)
+
+**Problem**: The Line Disruption API endpoint (`/Line/{ids}/Disruption`) never populated the `affectedRoutes` and `affectedStops` fields, making it impossible to determine which specific lines and stop points were affected by disruptions.
+
+**Solution Implemented**:
+1. **API Endpoint Migration**: Replaced Line Disruption API with Line Status API (`/Line/{ids}/Status?detail=true`)
+2. **Enhanced Data Processing**: The Line Status API provides detailed disruption information including:
+   - Populated `affectedRoutes` with complete route section details via `routeSectionNaptanEntrySequence`
+   - Each entry contains full stop point details with multiple identifiers (`naptanId`, `id`, `stationNaptan`)
+   - Fallback to `affectedStops` when available (though typically empty in real responses)
+3. **Comprehensive Stop Point Extraction**: Implemented logic to extract all stop point identifiers from:
+   - Primary source: `affectedRoutes[].routeSectionNaptanEntrySequence[].stopPoint`
+   - Fallback source: `affectedStops[]` (usually empty but handled for completeness)
+   - Multiple identifier types: `naptanId`, `id`, and `stationNaptan` to ensure comprehensive coverage
+4. **Dual-Layer Filtering Logic**: Implemented comprehensive filtering that considers both data sources with correct priority:
+   - **Primary**: Check extracted `affectedStopPoints` (most granular and specific data)
+   - **Fallback**: Direct matching against `affectedRoutes` data when stop points are not available
+   - **Final Fallback**: Include disruptions with no specific affected routes/stops (entire line disruptions)
+5. **Intelligent Route Matching**: Advanced logic to determine route relevance by analyzing actual affected route sections rather than just extracted stop point lists
+6. **Batch Request Handling**: Added batching support for Line Status API calls (limit of 10 lines per request)
+7. **Stop Point Validation**: Disruptions are filtered to exclude those affecting irrelevant stop points not part of monitored routes
+8. **Comprehensive Testing**: Updated all tests to use Line Status API patterns and added extensive test coverage for filtering logic including edge cases
+
+**Key Benefits**:
+- **Accurate Disruption Mapping**: Can now precisely identify which stop points are affected
+- **Relevant Information Only**: Filters out disruptions for stop points outside monitored routes
+- **Better Data Quality**: Uses API endpoint that properly populates affected routes and stops
+- **Scalable Architecture**: Batched requests handle large numbers of lines efficiently
+
+### Stop Point Identifier Handling
 
 During implementation, it was discovered that the TfL Stop Point Disruption API returns stop point identifiers in two different fields:
 - `atcoCode`: Standard ATCO codes for stop points
