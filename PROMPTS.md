@@ -409,3 +409,28 @@ It found the fields and did pattern matches against the source code to see where
 they were used but before it could finish, I ran out of the 5m/day token
 limit. But I think the fields are likely not used in the implementation anyway,
 and the web application appears to be working.
+
+I switched to GitHub CoPilot and prompted it to make further fixes, which it
+did successfully.
+
+>Examine all of the tests. Determine what each of the test implementations is
+>actually testing. Compare this with the name of the test. If what the test is
+>actually testing differs from what the name of the test suggests, revise the
+>name of the test to reflect what the test implementation is actually testing.
+
+Then
+
+>Remove the Calculator implementation and test. They are not relevant to the
+>functionality as described in PROMPTS.md and INSTRUCTIONS.md.
+
+And
+
+>Rewrite the README.md to indicate what this repository actually implements
+>based on the content in PROMPTS.md and INSTRUCTIONS.md.
+
+It didn't check to see if the project would still build correctly so I
+prompted it to run the build again. It did succeed.
+
+>Ensure that the project builds successfully with `npm run build`,
+>that all tests pass using `npm run test` and that there are no
+>linting errors or warnings reported by `npm run lint`.

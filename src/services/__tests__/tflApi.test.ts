@@ -60,7 +60,7 @@ describe('TflApiClient', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('should batch large requests', async () => {
+    it('should successfully process all batches for large requests', async () => {
       const lineIds = Array.from({ length: 25 }, (_, i) => `line${i}`);
       
       // Mock 3 responses (25 IDs with batch size 10 = 3 batches)
@@ -136,7 +136,7 @@ describe('TflApiClient', () => {
       expect(result).toEqual(mockDisruptions);
     });
 
-    it('should batch large requests', async () => {
+    it('should successfully process all batches for large requests', async () => {
       const stopIds = Array.from({ length: 75 }, (_, i) => `stop${i}`);
       
       // Mock 8 responses (75 IDs with batch size 10 = 8 batches)
@@ -325,7 +325,7 @@ describe('TflApiClient', () => {
   });
 
   describe('processStopPointDisruptions', () => {
-    it('should process stop point disruptions correctly', () => {
+    it('should process stop point disruptions with correct field mappings', () => {
       const rawDisruptions: TflStopPointDisruption[] = [
         {
           atcoCode: '490000240W',

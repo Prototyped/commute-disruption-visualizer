@@ -23,7 +23,7 @@ describe('RouteDisruptionService', () => {
   });
 
   describe('getAllRouteDisruptions', () => {
-    it('should fetch and process disruptions for all routes', async () => {
+    it('should fetch, process and return correctly structured disruptions for all routes', async () => {
       const mockLineStatusResponses: TflLineStatusResponse[] = [];
       const mockStopDisruptions: TflStopPointDisruption[] = [];
 
@@ -60,7 +60,7 @@ describe('RouteDisruptionService', () => {
   });
 
   describe('getRouteDisruptions', () => {
-    it('should fetch disruptions for a specific route', async () => {
+    it('should fetch disruptions and return correctly identified route', async () => {
       const mockLineStatusResponses: TflLineStatusResponse[] = [];
       const mockStopDisruptions: TflStopPointDisruption[] = [];
       const mockProcessedLineDisruptions: ProcessedDisruption[] = [];

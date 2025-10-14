@@ -1,16 +1,19 @@
-# TfL Disruption Monitor
+# TfL Disruption Visualizer
 
-A comprehensive React-based web application for monitoring Transport for London (TfL) disruptions across key commuter routes. This application provides real-time disruption information organized by specific travel routes between key locations in London.
+A React-based web application that monitors and visualizes Transport for London (TfL) service disruptions for specific commuter routes between Kingfisher Way/Normansmead and Liverpool Street Station.
 
-## 🚇 Features
+## Overview
 
-- **Real-time Disruption Monitoring**: Fetches live data from TfL APIs
-- **Route-based Organization**: Groups disruptions by specific travel routes
-- **Bidirectional Route Support**: Monitors both outbound and inbound journeys
-- **Severity Classification**: Categorizes disruptions by severity (low, medium, high, severe)
-- **Responsive Design**: Works seamlessly on desktop and mobile devices
-- **Auto-refresh**: Automatically updates data every 5 minutes
-- **Comprehensive Coverage**: Monitors bus, tube, and rail services
+This application tracks disruptions on three specific commuting routes by monitoring TfL's public APIs for both line and stop point disruptions. It organizes and displays this information in a route-centric view, making it easy to see the current status of each journey segment.
+
+## Features
+
+- Real-time monitoring of TfL disruptions using public APIs
+- Route-based organization of disruptions
+- Support for both outbound and inbound journeys
+- Integration with multiple TfL services (buses, underground, and Elizabeth line)
+- Automatic data refresh every 5 minutes
+- Mobile-friendly responsive design
 
 ## 🛣️ Monitored Routes
 
@@ -50,156 +53,90 @@ npm run dev
 
 ```bash
 # Development
-npm run dev          # Run with ts-node for development
-npm run build:watch  # Compile TypeScript in watch mode
+npm run start        # Start development server
+npm run build:watch  # Watch mode compilation
 
 # Production
-npm run build        # Compile TypeScript to JavaScript
-npm run start        # Run the compiled application
+npm run build        # Create production build
+npm run clean        # Clean build artifacts
 
 # Testing
-npm run test         # Run all tests
+npm run test         # Run tests
 npm run test:watch   # Run tests in watch mode
 
 # Code Quality
 npm run lint         # Run ESLint
-npm run lint:fix     # Fix ESLint issues automatically
-
-# Utilities
-npm run clean        # Remove build artifacts
+npm run lint:fix     # Fix linting issues
 ```
 
-## 🏗️ Architecture
+## Technical Implementation
 
 ### Project Structure
 
 ```
 src/
-├── components/           # React components
-│   ├── DisruptionCard.tsx       # Individual disruption display
-│   ├── RouteCard.tsx            # Route with disruptions
-│   ├── RouteSegmentDisplay.tsx  # Route visualization
-│   └── *.css                    # Component styles
-├── data/
-│   └── routes.ts        # Route definitions and stop points
+├── components/        # React components
+│   ├── DisruptionCard     # Display individual disruptions
+│   ├── RouteCard         # Display route information
+│   └── RouteSegmentDisplay # Visualize route segments
 ├── services/
-│   ├── tflApi.ts               # TfL API client
-│   ├── routeDisruptionService.ts  # Business logic
-│   └── __tests__/              # Service tests
+│   ├── tflApi           # TfL API client
+│   └── routeDisruptionService  # Disruption processing
 ├── types/
-│   └── tfl.ts          # TypeScript interfaces
-├── App.tsx             # Main application component
-└── index.ts            # Application entry point
+│   └── tfl.ts          # TfL API type definitions
+└── data/
+    └── routes.ts       # Route definitions
 ```
 
 ### Key Components
 
-- **TflApiClient**: Handles all TfL API communication
-- **RouteDisruptionService**: Processes and maps disruptions to routes
-- **RouteCard**: Displays route information and associated disruptions
-- **DisruptionCard**: Shows individual disruption details
-- **RouteSegmentDisplay**: Visualizes route segments and stops
+The application is built with three main service layers:
 
-### Data Flow
+1. **TfL API Integration** (`tflApi.ts`)
+   - Handles communication with TfL APIs
+   - Implements batched requests for better performance
+   - Processes API responses into consistent formats
 
-1. **Data Fetching**: Service fetches disruptions from TfL APIs
-2. **Processing**: Raw API data is processed and categorized
-3. **Route Mapping**: Disruptions are mapped to specific routes
-4. **UI Rendering**: React components display organized information
-5. **Auto-refresh**: Process repeats every 5 minutes
+2. **Route Disruption Service** (`routeDisruptionService.ts`)
+   - Maps disruptions to specific routes
+   - Tracks both stop point and line disruptions
+   - Processes bi-directional route information
 
-## 🔧 Configuration
+3. **React Components**
+   - Route-based display of disruptions
+   - Real-time updates with 5-minute refresh
+   - Mobile-responsive design
 
-### TfL API Integration
+## TfL API Integration
 
-The application uses these TfL API endpoints:
+The application uses two main TfL API endpoints:
+- Line Disruptions: `https://api.tfl.gov.uk/Line/{line_ids}/Disruption`
+- Stop Point Disruptions: `https://api.tfl.gov.uk/StopPoint/{stop_point_ids}/Disruption`
 
-- **Line Disruptions**: `https://api.tfl.gov.uk/Line/{line_ids}/Disruption`
-- **Stop Point Disruptions**: `https://api.tfl.gov.uk/StopPoint/{stop_point_ids}/Disruption`
+### Monitored Services
 
-### Monitored Transport Lines
+#### Rail Lines
+- Metropolitan Line (`metropolitan`)
+- Hammersmith and City Line (`hammersmith-city`)
+- Circle Line (`circle`)
+- Bakerloo Line (`bakerloo`)
+- Elizabeth Line (`elizabeth`)
 
-- Metropolitan Line
-- Hammersmith & City Line
-- Circle Line
-- Bakerloo Line
-- Elizabeth Line
-- Bus routes: 112, 206, 224
+#### Bus Routes
+- Route 112 (`112`)
+- Route 206 (`206`)
+- Route 224 (`224`)
 
-### Route Configuration
+## Development
 
-Routes are defined in `src/data/routes.ts` with:
-- Line identifiers
-- Stop point sequences
-- Direction indicators
-- Mode types (bus/tube/rail)
+The project follows a test-driven development approach with:
+- TypeScript for type safety
+- Jest for testing
+- ESLint for code quality
+- React for UI components
+- CSS Modules for styling
 
-## 🧪 Testing
-
-The project includes comprehensive test coverage:
-
-```bash
-# Run all tests
-npm run test
-
-# Test specific components
-npm run test -- tflApi.test.ts
-npm run test -- routeDisruptionService.test.ts
-```
-
-### Test Coverage
-
-- ✅ TfL API client functionality
-- ✅ Disruption processing logic
-- ✅ Route mapping algorithms
-- ✅ Error handling scenarios
-- ✅ Data transformation
-
-## 🎨 Styling
-
-- **CSS Modules**: Component-scoped styling
-- **Responsive Design**: Mobile-first approach
-- **Severity Colors**: Visual disruption severity indicators
-- **Accessibility**: WCAG compliant color contrasts
-
-## 📱 Browser Support
-
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-
-## 🔒 Security
-
-- No API keys required (TfL APIs are public)
-- Client-side only (no server storage)
-- HTTPS ready for production deployment
-
-## 🚀 Deployment
-
-### Production Build
-
-```bash
-npm run build
-```
-
-### Deployment Options
-
-The built application can be deployed to:
-- Netlify
-- Vercel
-- GitHub Pages
-- AWS S3 + CloudFront
-- Any static hosting service
-
-## 📊 Performance
-
-- **Bundle Size**: Optimized for fast loading
-- **API Batching**: Efficient TfL API usage
-- **Caching**: Smart data refresh strategy
-- **Error Recovery**: Graceful API failure handling
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -208,23 +145,6 @@ The built application can be deployed to:
 5. Ensure all tests pass
 6. Submit a pull request
 
-## 📄 License
+## License
 
 MIT License - see LICENSE file for details
-
-## 🙏 Acknowledgments
-
-- **Transport for London (TfL)** for providing public APIs
-- **React Team** for the excellent framework
-- **TypeScript Team** for type safety
-
-## 📞 Support
-
-For issues or questions:
-1. Check existing GitHub issues
-2. Create a new issue with detailed description
-3. Include browser and environment information
-
----
-
-*Last updated: January 2024*
