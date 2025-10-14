@@ -225,3 +225,187 @@ Finally I followed up with
 It went through some file modification, and then I ran out of the 5 million
 token quota for the day.
 
+## Fixes
+
+I had to use GitHub CoPilot with Claude Sonnet 3.5 to fix up the build and fix
+build, linting and test errors. In particular, Rovo had referenced `LineInfo`
+and not actually defined it. CoPilot did help put together a fleshed-out
+structure definition for it after invoking the example API request to Line
+Disruption, to its credit, once I added this file to its context. The older
+model hallucinates a lot more with a much smaller context so fixing the linting
+and test failure issues was a struggle, and I gave up and made the changes
+myself.
+
+I had to strip out the severity logic (which I never requested and which the
+logic was attempting to derive by pattern matching on descriptions which is
+exquisitely brittle). The tests attempting to cover that logic were amongst the
+tests that were breaking.
+
+GitHub CoPilot did help set up webpack as part of the build system with the
+following prompt.
+
+>Fix this error:
+>
+>```shell
+>$ npm run dev
+>
+>> commute-disruption-visualizer@0.0.1 dev
+>> ts-node src/index.ts
+>
+>/home/amitg/repos/commute-disruption-visualizer/src/components/DisruptionCard.css:1
+>.disruption-card {
+>^
+>
+>SyntaxError: Unexpected token '.'
+>    at wrapSafe (node:internal/modules/cjs/loader:1472:18)
+>    at Module._compile (node:internal/modules/cjs/loader:1501:20)
+>    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+>    at Object.require.extensions.<computed> [as .js] (/home/amitg/repos/commute-disruption-visualizer/node_modules/ts-node/src/index.ts:1608:43)
+>    at Module.load (node:internal/modules/cjs/loader:1275:32)
+>    at Function.Module._load (node:internal/modules/cjs/loader:1096:12)
+>    at Module.require (node:internal/modules/cjs/loader:1298:19)
+>    at require (node:internal/modules/helpers:182:18)
+>    at Object.<anonymous> (/home/amitg/repos/commute-disruption-visualizer/src/components/DisruptionCard.tsx:3:1)
+>    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+>```
+
+I noticed that the Line Disruption API endpoint never provided stop identifiers
+or line identifiers in its response, only unstructured textual information.
+On the TfL tech forums I found a [thread](https://techforum.tfl.gov.uk/t/empty-affectedroutes-and-affectedstops/1756/5)
+that discussed this problem, and found that the [Line Status API](https://api-portal.tfl.gov.uk/api-details#api=Line&operation=Line_StatusByIdsByPathIdsQueryDetail&definition=Tfl-19)
+when requested with `?detail=true` does in fact return structured disruption
+information with ATCO codes for affected stops and routes.
+
+I prompted Rovo to first check both `atcoCode` and `stationAtcoCode`, as the
+stop points mentioned in the earlier prompts were mostly station codes with a
+few stop specific codes.
+
+>Consult PROMPTS.md and INSTRUCTIONS.md for work done so far, as well as the API
+>specifications and example API requests linked from those files. The
+>implementation that maps stop point disruptions to the routes being monitored
+>for disruption assumes that the stop points queried are present in the
+>`atcoCode` part of the StopPoint Disruption API response. In reality, they
+>could be in either `atcoCode` or `stationAtcoCode` as they are a mixture of
+>station ATCO codes and stop ATCO codes. Revise the logic to
+>
+>1. propagate both the `atcoCode` and `stationAtcoCode` values from the TfL API
+>   response shapes; and
+>2. if the value is present in either, map the disruption to the corresponding
+>   route.
+
+Then it found using `jest` that tests were failing (this was due to me fixing
+the batching used for the StopPoint Disruption API myself&mdash;the logic was
+attempting to batch 50 at once even though in an earlier prompt I had said to
+batch no more than 15 together). I prompted it to fix the failing tests:
+
+>Use `npm run test` to ensure all tests are passing.
+
+I asked it to revise `INSTRUCTIONS.md` accordingly.
+
+>Revise INSTRUCTIONS.md based on the context in this session so far.
+
+After this was revised I had Rovo use the Line Status API instead of the Line
+Disruption API:
+
+>Consult PROMPTS.md and INSTRUCTIONS.md for work done so far, as well as the
+>API specifications and example API requests linked from those files. The
+>implementation currently uses the Line Disruption API endpoint (GET request of
+>the form https://api.tfl.gov.uk/Line/{ids}/Disruption ). The response to this
+>API never populates affectedRoutes and affectedStops fields, so it is
+>generally not possible to determine which lines and which StopPoints are
+>affected.
+>
+>Entirely replace the use of the above mentioned API endpoint with the Line
+>Status API endpoint instead. This API endpoint provides status of every
+>StopPoint on the Line (including StopPoints not listed in PROMPTS.md or
+>INSTRUCTIONS.md, and that are not relevant to monitoring the routes we are
+>interested in). The GET request takes the form
+>https://api.tfl.gov.uk/Line/{ids}/Status?detail=true -- and is documented at
+>https://api-portal.tfl.gov.uk/api-details#api=Line&operation=Line_StatusByIdsByPathIdsQueryDetail
+>-- the "detail=true" query parameter is very important. The response has an
+>optional "disruptions" attribute that has the same schema as the Line
+>Disruptions API endpoint that was previously mentioned, but this API response
+>does populate affectedLines and affectedRoutes attributes within.
+>
+>In order to understand the response shape for the Line Status API endpoint,
+>make a GET request to
+>https://api.tfl.gov.uk/Line/bakerloo,94/Status?detail=true and examine the
+>response.
+>
+>In your revised implementation, ensure that disruptions affecting any
+>StopPoints, whether they are atcoCodes or stationAtcoCodes, that are not
+>mentioned in the route breakdowns in PROMPTS.md or INSTRUCTIONS.md, are
+>disregarded. Consider any Lines whose Status response does not include the
+>`disruptions` attribute to not be disrupted. Only disruptions affecting the
+>StopPoints mentioned in those files should be surfaced in the
+>visualization. Ensure that batch requests limit the number of Lines and
+>StopPoints in individual API requests to no more than 10.
+>
+>Also revise the tests to include a happy-case test with a response shape
+>patterned after the Line Status response you get by calling the example API
+>endpoint given above. Ensure that the test case covers disruptions only to
+>non-relevant stop-points (expectation is that the route will show no
+>disruptions), disruption to one relevant stop-point (expectation is that the
+>route will show disruption to that stop-point as a disruption to the route),
+>disruption to multiple relevant and non-relevant stop-points (expectation is
+>that the route will show disruption to the relevant stop-points as a
+>disruption to the route).
+>
+>Rework all tests based on the Line Disruption API to be based on the Line
+>Status API instead.
+>
+>Revise INSTRUCTIONS.md based on the context in this session so far once the
+>other changes are complete and `npm run lint` and `npm run test` pass.
+
+It went through and followed the instructions, but I noticed that it was using
+the `affectedStopPoints` shape but not considering the `affectedRoutes` shape,
+while the real API response typically had an empty `affectedStopPoints`, while
+`affectedRoutes` was populated.
+
+The API shape definitions also had `any` types, attracting linter errors. I
+prompted it to fix them.
+
+>Linter errors are not acceptable. Correct all the linter errors.
+
+and then prompted it, twice, to fix the logic:
+
+>Your implementation considers only affectedStopPoints in the response shape
+>and ignores affectedRoutes. If you examine the actual response you received
+>for the Line Status example API endpoint I provided earlier in the session, you
+>will see that affectedStopPoints is usually empty, and it is affectedRoutes
+>that usually carries information about the StopPoints that are
+>affected. Correct the implementation and tests to consider both
+>affectedStopPoints and affectedRoutes in the Line Status API response in
+>determining whether a given transit route is impacted by disruption to a Line.
+
+which didn't fix things:
+
+>Your derivation of `relevantLineDisruptions` does not appear to take into
+>account the affectedRoutes field, am I mistaken?
+
+at which point it actually corrected the implementation. I could see it was
+prioritizing `affectedRoutes` over `affectedStopPoints`, which is incorrect,
+even though in the actual API response, `affectedStopPoints` was typically
+empty. Another prompt to do this:
+
+>affectedStopPoints is more granular and therefore more specific than
+>affectedRoutes, so if it is not empty, its contents should take precedence
+>over the contents of affectedRoutes. 
+
+I noticed it got a compilation error and decided to filter away fields with
+unknown types. I was concerned it would do this to important fields that it was
+using in its logic so prompted it to correct this if it was a problem.
+
+>Examine your filtering of unknown types. Is it possible that the logic will
+>always filter away fields that are useful to it because your definition of the
+>interfaces has marked them as unknown? As a reminder, these fields come from
+>an API response, and in your context, you have an example response, so it is
+>not really necessary to define them as unknown. Check whether the logic is
+>referencing any of these unknown fields, and if it is, and it is filtering
+>away their contents first because they are typed as unknown, correct the type
+>definitions.
+
+It found the fields and did pattern matches against the source code to see where
+they were used but before it could finish, I ran out of the 5m/day token
+limit. But I think the fields are likely not used in the implementation anyway,
+and the web application appears to be working.
