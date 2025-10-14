@@ -126,7 +126,8 @@ export class TflApiClient {
       endDate,
       isActive: this.isStopPointDisruptionActive(disruption),
       source: 'stopPoint',
-      stopPointId: disruption.atcoCode
+      stopPointId: disruption.atcoCode,
+      stationAtcoCode: disruption.stationAtcoCode
     };
   }
 

@@ -144,7 +144,8 @@ export interface ProcessedDisruption {
   endDate: Date;
   isActive: boolean;
   source: 'stopPoint' | 'line'; // Which API this came from
-  stopPointId?: string; // For stop point disruptions
+  stopPointId?: string; // For stop point disruptions (from atcoCode)
+  stationAtcoCode?: string; // For stop point disruptions (from stationAtcoCode)
   lineId?: string; // For line disruptions
 }
 

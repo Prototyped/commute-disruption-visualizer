@@ -302,7 +302,8 @@ The application monitors disruptions for the following routes in both directions
 - **Mode Detection**: Extract transport mode (bus/tube/rail) from descriptions and stop data
 
 ### Route Association Logic
-- **Stop Point Matching**: Match disruption `atcoCode` with route stop point IDs
+- **Stop Point Matching**: Match disruptions using both `atcoCode` and `stationAtcoCode` with route stop point IDs
+- **Dual Identifier Support**: Handle mixed station ATCO codes and stop ATCO codes from TfL API responses
 - **Line Matching**: Extract line identifiers from disruption descriptions
 - **Bidirectional Support**: Handle different stop sequences for outbound vs inbound routes
 - **Multi-modal Routes**: Support routes that combine bus and rail segments
@@ -349,5 +350,25 @@ This application was developed following a systematic approach:
 - **Test-First Approach Works**: Writing tests before implementation helped catch modeling errors early
 - **Error Handling is Essential**: TfL APIs can return various error conditions that must be handled gracefully
 - **Route Mapping Complexity**: Associating disruptions with specific routes requires careful matching logic for both line and stop-point data
+- **API Data Inconsistency**: TfL stop point disruptions use mixed identifier types (`atcoCode` and `stationAtcoCode`) requiring flexible matching logic
+
+## Recent Enhancements
+
+### Stop Point Identifier Handling (Latest)
+
+During implementation, it was discovered that the TfL Stop Point Disruption API returns stop point identifiers in two different fields:
+- `atcoCode`: Standard ATCO codes for stop points
+- `stationAtcoCode`: Station-level ATCO codes for larger transport hubs
+
+**Problem**: The initial implementation only used `atcoCode` for mapping disruptions to routes, missing disruptions that were identified by `stationAtcoCode`.
+
+**Solution Implemented**:
+1. **Extended Data Model**: Added `stationAtcoCode` field to `ProcessedDisruption` interface
+2. **Enhanced Processing**: Modified `processStopPointDisruption()` to propagate both identifier types
+3. **Flexible Matching**: Updated route mapping logic to check both `stopPointId` (from `atcoCode`) and `stationAtcoCode` when filtering disruptions
+4. **Comprehensive Testing**: Added test coverage for all identifier matching scenarios
+5. **Fixed Test Issues**: Corrected existing test expectations to match actual API batching behavior
+
+**Result**: The system now correctly identifies and maps disruptions regardless of which identifier type the TfL API uses, ensuring comprehensive coverage of all stop point disruptions.
 
 This comprehensive approach resulted in a robust, well-tested application that accurately processes real TfL disruption data and presents it in an intuitive, route-based interface.

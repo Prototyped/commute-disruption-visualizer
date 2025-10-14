@@ -86,8 +86,9 @@ export class RouteDisruptionService {
     );
 
     const relevantStopDisruptions = stopDisruptions.filter(disruption =>
-      // For stop point disruptions, check if the stopPointId matches any route stop
-      disruption.stopPointId && routeStopIds.includes(disruption.stopPointId)
+      // For stop point disruptions, check if either the stopPointId (atcoCode) or stationAtcoCode matches any route stop
+      (disruption.stopPointId && routeStopIds.includes(disruption.stopPointId)) ||
+      (disruption.stationAtcoCode && routeStopIds.includes(disruption.stationAtcoCode))
     );
 
     return {

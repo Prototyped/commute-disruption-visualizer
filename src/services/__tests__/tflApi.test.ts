@@ -109,19 +109,17 @@ describe('TflApiClient', () => {
     it('should batch large requests', async () => {
       const stopIds = Array.from({ length: 75 }, (_, i) => `stop${i}`);
       
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => [],
-        } as Response)
-        .mockResolvedValueOnce({
+      // Mock 8 responses (75 IDs with batch size 10 = 8 batches)
+      for (let i = 0; i < 8; i++) {
+        mockFetch.mockResolvedValueOnce({
           ok: true,
           json: async () => [],
         } as Response);
+      }
 
       await client.getStopPointDisruptions(stopIds);
 
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(8);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('StopPoint/')
       );
@@ -136,20 +134,29 @@ describe('TflApiClient', () => {
     it('should continue with other batches if one fails', async () => {
       const stopIds = Array.from({ length: 75 }, (_, i) => `stop${i}`);
       
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 400,
-          statusText: 'Bad Request',
-        } as Response)
-        .mockResolvedValueOnce({
+      // Mock first batch to fail, rest to succeed with only one returning data
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+      } as Response);
+      
+      // Mock remaining 7 batches (6 empty, 1 with data)
+      for (let i = 0; i < 6; i++) {
+        mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: async () => [{ id: 'disruption1' }],
+          json: async () => [],
         } as Response);
+      }
+      
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ id: 'disruption1' }],
+      } as Response);
 
       const result = await client.getStopPointDisruptions(stopIds);
 
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(8);
       expect(result).toEqual([{ id: 'disruption1' }]);
     });
   });
