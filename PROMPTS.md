@@ -434,3 +434,32 @@ prompted it to run the build again. It did succeed.
 >Ensure that the project builds successfully with `npm run build`,
 >that all tests pass using `npm run test` and that there are no
 >linting errors or warnings reported by `npm run lint`.
+
+## Grouping stops and lines for common descriptions
+
+An artifact of how disruptions are reported via the API is that the same
+disruption can affect multiple stops on a line. The application built so far
+would present a card for each stop affected as well as the line itself. I
+prompted Rovo to group together lines and stops impacted by the same disruption
+description text.
+
+>Read PROMPTS.md and INSTRUCTIONS.md for the full context. The disruption
+>description is often the exact same text across multiple affected Lines and
+>StopPoints. Group together the Lines and StopPoints affected by a given
+>disruption description and present a single DisruptionCard by route for the
+>group. For the start and end, present the minimum start date and maximum end
+>date across the group of affected Lines and StopPoints with the exact same
+>description text.
+
+The LLM complied, but created a new React component for the grouped disruptions
+instead of modifying the existing `DisruptionCard`. The result was unused
+code. I prompted the LLM to remove unused code and dependencies serving only
+the unused code:
+
+>Ensure all tests are passing and ensure that there are no linting
+>errors. Check for any unused React components and supporting code that is used
+>only for those unused components, and remove them.
+
+The LLM went through and removed the now unused React component and dependency
+code (such as imports), and also found unused source from the initial
+TypeScript project.

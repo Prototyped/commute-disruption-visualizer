@@ -401,3 +401,68 @@ During implementation, it was discovered that the TfL Stop Point Disruption API 
 **Result**: The system now correctly identifies and maps disruptions regardless of which identifier type the TfL API uses, ensuring comprehensive coverage of all stop point disruptions.
 
 This comprehensive approach resulted in a robust, well-tested application that accurately processes real TfL disruption data and presents it in an intuitive, route-based interface.
+
+## Disruption Grouping Feature
+
+A significant enhancement was implemented to improve the user experience by grouping together disruptions that share identical descriptions across multiple stops on the same route. This prevents duplicate information from cluttering the interface when the same disruption (e.g., "Severe delays due to an incident") affects multiple stops along a route.
+
+### Implementation Details
+
+#### Key Files Modified
+
+1. **`src/types/tfl.ts`**
+   - Added `GroupedDisruption` interface to represent aggregated disruption data
+   - Extended `RouteDisruptions` interface to include `groupedDisruptions` field
+   - `GroupedDisruption` combines multiple `ProcessedDisruption` objects with identical descriptions
+
+2. **`src/services/routeDisruptionService.ts`**
+   - Implemented `groupDisruptionsByDescription()` method that:
+     - Groups disruptions by exact description text match
+     - Aggregates affected lines, stop points, and stop names
+     - Determines overall date range (minimum start, maximum end)
+     - Maintains active status if any grouped disruption is active
+     - Generates stable group IDs for consistent rendering
+   - Modified `mapDisruptionsToRoute()` to call the grouping logic
+   - Groups are created from both line disruptions and stop point disruptions
+
+3. **`src/components/GroupedDisruptionCard.tsx`**
+   - New React component for displaying grouped disruption information
+   - Shows consolidated view with all affected locations
+   - Formats affected items (stops/lines) with intelligent truncation
+   - Displays count of original disruptions when grouped (e.g., "Grouped from 3 disruptions")
+   - Handles both stop names and line names in the header
+
+4. **`src/components/RouteCard.tsx`**
+   - Updated to use `GroupedDisruptionCard` instead of individual disruption cards
+   - Displays grouped disruptions as the primary view
+   - Shows count of active vs. resolved grouped disruptions
+   - Maintains existing functionality for showing/hiding resolved disruptions
+
+### Grouping Logic
+
+The grouping algorithm works as follows:
+
+1. **Collection**: All disruptions (both line and stop point) for a route are collected
+2. **Grouping**: Disruptions are grouped by exact description text match using a Map
+3. **Aggregation**: For each group:
+   - Collect all unique affected lines and stop points/names
+   - Calculate date range (earliest start to latest end)
+   - Determine if group is active (true if any disruption is active)
+   - Identify source type (stopPoint, line, or mixed)
+   - Generate stable group ID for consistent rendering
+4. **Display**: Groups are displayed as consolidated cards showing all affected locations
+
+### Benefits
+
+- **Reduced Clutter**: Eliminates duplicate disruption cards for the same incident
+- **Better Overview**: Users can quickly see which areas of a route are affected
+- **Preserved Detail**: Original disruption data is maintained for debugging/analysis
+- **Intelligent Formatting**: Smart truncation of affected location lists
+- **Consistent UX**: Grouped disruptions follow the same interaction patterns as individual ones
+
+### Example Scenarios
+
+- **Before Grouping**: 5 separate cards showing "Severe delays due to incident" for different bus stops
+- **After Grouping**: 1 card showing "Severe delays due to incident" affecting "Stop A, Stop B, Stop C and 2 more"
+
+This enhancement significantly improves the readability and usability of the disruption information while maintaining all the underlying data integrity and functionality.

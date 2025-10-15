@@ -1,5 +1,5 @@
 import { TflApiClient } from './tflApi';
-import { RouteDefinition, RouteDisruptions, ProcessedDisruption } from '../types/tfl';
+import { RouteDefinition, RouteDisruptions, ProcessedDisruption, GroupedDisruption } from '../types/tfl';
 import { ALL_ROUTES, ALL_LINE_IDS, getAllStopPointIds } from '../data/routes';
 
 /**
@@ -106,10 +106,15 @@ export class RouteDisruptionService {
       (disruption.stationAtcoCode && routeStopIds.includes(disruption.stationAtcoCode))
     );
 
+    // Group disruptions by description text
+    const allDisruptions = [...relevantLineDisruptions, ...relevantStopDisruptions];
+    const groupedDisruptions = this.groupDisruptionsByDescription(allDisruptions);
+
     return {
       route,
       lineDisruptions: relevantLineDisruptions,
       stopDisruptions: relevantStopDisruptions,
+      groupedDisruptions,
     };
   }
 
@@ -195,5 +200,118 @@ export class RouteDisruptionService {
    */
   getAllRoutes(): RouteDefinition[] {
     return [...ALL_ROUTES];
+  }
+
+  /**
+   * Group disruptions by identical description text
+   */
+  private groupDisruptionsByDescription(disruptions: ProcessedDisruption[]): GroupedDisruption[] {
+    // Group by exact description match
+    const descriptionGroups = new Map<string, ProcessedDisruption[]>();
+    
+    disruptions.forEach(disruption => {
+      const description = disruption.description.trim();
+      if (!descriptionGroups.has(description)) {
+        descriptionGroups.set(description, []);
+      }
+      descriptionGroups.get(description)!.push(disruption);
+    });
+
+    // Convert groups to GroupedDisruption objects
+    const groupedDisruptions: GroupedDisruption[] = [];
+    
+    descriptionGroups.forEach((disruptionsInGroup, description) => {
+      if (disruptionsInGroup.length === 0) return;
+
+      // Collect all unique affected lines and stop points
+      const affectedLines = new Set<string>();
+      const affectedStopPoints = new Set<string>();
+      const affectedStopNames = new Set<string>();
+      
+      // Determine date range (min start, max end)
+      let minStartDate = disruptionsInGroup[0].startDate;
+      let maxEndDate = disruptionsInGroup[0].endDate;
+      
+      // Determine if any disruption in the group is active
+      let isActive = false;
+      
+      // Determine source type
+      const sources = new Set<string>();
+      
+      // Aggregate modes (should be consistent within a group typically)
+      const modes = new Set<string>();
+      const types = new Set<string>();
+
+      disruptionsInGroup.forEach(disruption => {
+        // Collect affected lines
+        if (disruption.lineId) {
+          affectedLines.add(disruption.lineId);
+        }
+        if (disruption.affectedStopPoints) {
+          disruption.affectedStopPoints.forEach(stopId => affectedStopPoints.add(stopId));
+        }
+        
+        // Collect affected stop points and names
+        if (disruption.stopPointId) {
+          affectedStopPoints.add(disruption.stopPointId);
+        }
+        if (disruption.stationAtcoCode) {
+          affectedStopPoints.add(disruption.stationAtcoCode);
+        }
+        if (disruption.commonName) {
+          affectedStopNames.add(disruption.commonName);
+        }
+        
+        // Update date range
+        if (disruption.startDate < minStartDate) {
+          minStartDate = disruption.startDate;
+        }
+        if (disruption.endDate > maxEndDate) {
+          maxEndDate = disruption.endDate;
+        }
+        
+        // Check if any disruption is active
+        if (disruption.isActive) {
+          isActive = true;
+        }
+        
+        // Collect source types
+        sources.add(disruption.source);
+        modes.add(disruption.mode);
+        types.add(disruption.type);
+      });
+
+      // Determine overall source type
+      let source: 'stopPoint' | 'line' | 'mixed';
+      if (sources.size === 1) {
+        source = Array.from(sources)[0] as 'stopPoint' | 'line';
+      } else {
+        source = 'mixed';
+      }
+
+      // Use the most common mode and type
+      const mode = Array.from(modes)[0] || 'unknown';
+      const type = Array.from(types)[0] || 'Unknown';
+
+      // Generate a stable ID for the group
+      const groupId = `group-${description.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20)}-${Array.from(affectedLines).sort().join(',')}-${Array.from(affectedStopPoints).sort().join(',').substring(0, 50)}`;
+
+      groupedDisruptions.push({
+        id: groupId,
+        type,
+        description,
+        mode,
+        startDate: minStartDate,
+        endDate: maxEndDate,
+        isActive,
+        source,
+        affectedLines: Array.from(affectedLines).sort(),
+        affectedStopPoints: Array.from(affectedStopPoints).sort(),
+        affectedStopNames: Array.from(affectedStopNames).sort(),
+        originalDisruptions: disruptionsInGroup
+      });
+    });
+
+    return groupedDisruptions;
   }
 }

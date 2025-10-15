@@ -256,8 +256,25 @@ export interface ProcessedDisruption {
   affectedRoutes?: TflAffectedRoute[]; // Original affected routes data from TfL API
 }
 
+// Grouped disruption data for display - combines disruptions with identical descriptions
+export interface GroupedDisruption {
+  id: string;
+  type: string;
+  description: string;
+  mode: string;
+  startDate: Date; // Minimum start date across all grouped disruptions
+  endDate: Date; // Maximum end date across all grouped disruptions
+  isActive: boolean; // True if any disruption in the group is active
+  source: 'stopPoint' | 'line' | 'mixed'; // Mixed if group contains both types
+  affectedLines: string[]; // All unique line IDs affected
+  affectedStopPoints: string[]; // All unique stop point IDs affected
+  affectedStopNames: string[]; // All unique stop names affected
+  originalDisruptions: ProcessedDisruption[]; // Reference to original disruptions for debugging
+}
+
 export interface RouteDisruptions {
   route: RouteDefinition;
   lineDisruptions: ProcessedDisruption[];
   stopDisruptions: ProcessedDisruption[];
+  groupedDisruptions: GroupedDisruption[]; // New grouped view
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { RouteDisruptions } from '../types/tfl';
-import DisruptionCard from './DisruptionCard';
+import GroupedDisruptionCard from './GroupedDisruptionCard';
 import RouteSegmentDisplay from './RouteSegmentDisplay';
 import './RouteCard.css';
 
@@ -17,13 +17,13 @@ const RouteCard: React.FC<RouteCardProps> = ({
 }) => {
   const [showInactiveDisruptions, setShowInactiveDisruptions] = useState(false);
 
-  const { route, lineDisruptions, stopDisruptions } = routeDisruptions;
+  const { route, lineDisruptions, stopDisruptions, groupedDisruptions } = routeDisruptions;
 
-  const allDisruptions = [...lineDisruptions, ...stopDisruptions];
-  const activeDisruptions = allDisruptions.filter(d => d.isActive);
-  const inactiveDisruptions = allDisruptions.filter(d => !d.isActive);
+  // Use grouped disruptions as the primary display method
+  const activeGroupedDisruptions = groupedDisruptions.filter(d => d.isActive);
+  const inactiveGroupedDisruptions = groupedDisruptions.filter(d => !d.isActive);
 
-  const disruptionsToShow = showInactiveDisruptions ? allDisruptions : activeDisruptions;
+  const disruptionsToShow = showInactiveDisruptions ? groupedDisruptions : activeGroupedDisruptions;
 
   return (
     <div className={"route-card"}>
@@ -34,15 +34,15 @@ const RouteCard: React.FC<RouteCardProps> = ({
         </div>
         
         <div className="route-status">
-          {activeDisruptions.length > 0 && (
+          {activeGroupedDisruptions.length > 0 && (
             <span className="disruption-count">
-              {activeDisruptions.length} active disruption{activeDisruptions.length !== 1 ? 's' : ''}
+              {activeGroupedDisruptions.length} active disruption{activeGroupedDisruptions.length !== 1 ? 's' : ''}
             </span>
           )}
           
-          {inactiveDisruptions.length > 0 && (
+          {inactiveGroupedDisruptions.length > 0 && (
             <span className="disruption-count inactive">
-              {inactiveDisruptions.length} resolved
+              {inactiveGroupedDisruptions.length} resolved
             </span>
           )}
         </div>
@@ -56,12 +56,12 @@ const RouteCard: React.FC<RouteCardProps> = ({
         <div className="route-details">
           <RouteSegmentDisplay route={route} />
           
-          {allDisruptions.length > 0 ? (
+          {groupedDisruptions.length > 0 ? (
             <div className="route-disruptions">
               <div className="disruptions-header">
                 <h4>Disruptions</h4>
                 
-                {inactiveDisruptions.length > 0 && (
+                {inactiveGroupedDisruptions.length > 0 && (
                   <button
                     className="toggle-inactive-btn"
                     onClick={(e) => {
@@ -69,7 +69,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
                       setShowInactiveDisruptions(!showInactiveDisruptions);
                     }}
                   >
-                    {showInactiveDisruptions ? 'Hide' : 'Show'} resolved ({inactiveDisruptions.length})
+                    {showInactiveDisruptions ? 'Hide' : 'Show'} resolved ({inactiveGroupedDisruptions.length})
                   </button>
                 )}
               </div>
@@ -77,7 +77,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
               <div className="disruptions-list">
                 {disruptionsToShow.length > 0 ? (
                   disruptionsToShow.map(disruption => (
-                    <DisruptionCard
+                    <GroupedDisruptionCard
                       key={disruption.id}
                       disruption={disruption}
                     />
