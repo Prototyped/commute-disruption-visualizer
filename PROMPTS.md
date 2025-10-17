@@ -568,3 +568,7 @@ prompted the LLM to consider the disruption to start from 13:00 onwards.
 >is impacted to be 13:00 until 23:00. Update the tests accordingly. Ensure all
 >tests are passing. Ensure there are no linting errors or warnings. Rework
 >INSTRUCTIONS.md accordingly.
+
+I prompted the LLM to update the README.md.
+
+>Bring the README.md up to date with details about the Wembley Event Days logic.
