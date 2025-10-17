@@ -98,8 +98,8 @@ describe('RouteDisruptionService - Wembley Events', () => {
     });
 
     it('should add Wembley event disruption for route1-inbound on event day during event hours', async () => {
-      // Set current time to event day during disruption hours (18:00)
-      jest.setSystemTime(new Date('2025-10-19T18:00:00Z'));
+      // Set current time to event day during disruption hours (15:00)
+      jest.setSystemTime(new Date('2025-10-19T15:00:00Z'));
 
       mockWembleyService.isWembleyEventDay.mockResolvedValue({
         isEventDay: true,
@@ -139,7 +139,7 @@ describe('RouteDisruptionService - Wembley Events', () => {
     });
 
     it('should not add Wembley event disruption for other routes', async () => {
-      jest.setSystemTime(new Date('2025-10-19T18:00:00Z'));
+      jest.setSystemTime(new Date('2025-10-19T15:00:00Z'));
 
       mockWembleyService.isWembleyEventDay.mockResolvedValue({
         isEventDay: true,
@@ -152,7 +152,7 @@ describe('RouteDisruptionService - Wembley Events', () => {
     });
 
     it('should not add Wembley event disruption on non-event days', async () => {
-      jest.setSystemTime(new Date('2025-10-20T18:00:00Z'));
+      jest.setSystemTime(new Date('2025-10-20T15:00:00Z'));
 
       mockWembleyService.isWembleyEventDay.mockResolvedValue({
         isEventDay: false,
@@ -165,7 +165,7 @@ describe('RouteDisruptionService - Wembley Events', () => {
     });
 
     it('should handle multiple events on the same day', async () => {
-      jest.setSystemTime(new Date('2025-10-19T18:00:00Z'));
+      jest.setSystemTime(new Date('2025-10-19T15:00:00Z'));
 
       const multipleEvents = [
         mockWembleyEvent,
@@ -189,7 +189,7 @@ describe('RouteDisruptionService - Wembley Events', () => {
     });
 
     it('should handle Wembley service errors gracefully', async () => {
-      jest.setSystemTime(new Date('2025-10-19T18:00:00Z'));
+      jest.setSystemTime(new Date('2025-10-19T15:00:00Z'));
 
       mockWembleyService.isWembleyEventDay.mockRejectedValue(new Error('Service error'));
 
@@ -202,7 +202,7 @@ describe('RouteDisruptionService - Wembley Events', () => {
   describe('Separation from grouped disruptions', () => {
     it('should NOT include Wembley event disruptions in grouped disruptions', async () => {
       jest.useFakeTimers();
-      jest.setSystemTime(new Date('2025-10-19T18:00:00Z'));
+      jest.setSystemTime(new Date('2025-10-19T15:00:00Z'));
 
       mockWembleyService.isWembleyEventDay.mockResolvedValue({
         isEventDay: true,
@@ -246,7 +246,7 @@ describe('RouteDisruptionService - Wembley Events', () => {
 
     it('should handle empty TfL disruptions with Wembley events', async () => {
       jest.useFakeTimers();
-      jest.setSystemTime(new Date('2025-10-19T18:00:00Z'));
+      jest.setSystemTime(new Date('2025-10-19T15:00:00Z'));
 
       mockWembleyService.isWembleyEventDay.mockResolvedValue({
         isEventDay: true,
@@ -265,9 +265,9 @@ describe('RouteDisruptionService - Wembley Events', () => {
 
   describe('Time range checking', () => {
     it('should correctly identify times within range', () => {
-      const start = new Date('2025-10-19T16:00:00Z');
+      const start = new Date('2025-10-19T13:00:00Z');
       const end = new Date('2025-10-19T23:00:00Z');
-      const during = new Date('2025-10-19T18:00:00Z');
+      const during = new Date('2025-10-19T15:00:00Z');
       const before = new Date('2025-10-19T10:00:00Z');
       const after = new Date('2025-10-20T01:00:00Z');
 
@@ -276,6 +276,18 @@ describe('RouteDisruptionService - Wembley Events', () => {
       expect(service['isTimeInRange'](after, start, end)).toBe(false);
       expect(service['isTimeInRange'](start, start, end)).toBe(true); // Boundary
       expect(service['isTimeInRange'](end, start, end)).toBe(true); // Boundary
+    });
+
+    it('should handle new 13:00 start time correctly', () => {
+      const start = new Date('2025-10-19T13:00:00Z');
+      const end = new Date('2025-10-19T23:00:00Z');
+      const at1300 = new Date('2025-10-19T13:00:00Z');
+      const at1259 = new Date('2025-10-19T12:59:59Z');
+      const at1301 = new Date('2025-10-19T13:01:00Z');
+
+      expect(service['isTimeInRange'](at1300, start, end)).toBe(true); // Exactly at start
+      expect(service['isTimeInRange'](at1259, start, end)).toBe(false); // Just before
+      expect(service['isTimeInRange'](at1301, start, end)).toBe(true); // Just after start
     });
   });
 });

@@ -349,7 +349,7 @@ export class RouteDisruptionService {
       return events.map(event => {
         const eventDate = new Date(event.date);
         const startTime = new Date(eventDate);
-        startTime.setHours(16, 0, 0, 0); // 16:00 start time
+        startTime.setHours(13, 0, 0, 0); // 13:00 start time
         
         const endTime = new Date(eventDate);
         endTime.setHours(23, 0, 0, 0); // 23:00 end time

@@ -560,3 +560,11 @@ and
 >line feed. Update the implementation and tests accordingly, ensure all tests
 >pass, ensure there are no linting errors or warnings, and rework
 >INSTRUCTIONS.md accordingly.
+
+I then realized that the disruption starts earlier (usually around 14:45), and
+prompted the LLM to consider the disruption to start from 13:00 onwards.
+
+>Revise the time period on Wembley Event Days during which the route1-inbound
+>is impacted to be 13:00 until 23:00. Update the tests accordingly. Ensure all
+>tests are passing. Ensure there are no linting errors or warnings. Rework
+>INSTRUCTIONS.md accordingly.

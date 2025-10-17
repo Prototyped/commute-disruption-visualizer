@@ -502,7 +502,7 @@ The system specifically monitors the **inbound route from Liverpool Street to Ki
 #### Disruption Details
 - **Affected Route**: Only `route1-inbound` (Liverpool Street → Kingfisher Way via Wembley Park)
 - **Affected Service**: Bus 206 inbound direction
-- **Time Window**: 16:00 - 23:00 on event days
+- **Time Window**: 13:00 - 23:00 on event days
 - **Impact**: Bus 206 does not enter Wembley area; northernmost stop becomes Brent Park Tesco
 - **Affected Stops**: 
   - Wembley Park Station (490000257O)
@@ -522,7 +522,7 @@ The system specifically monitors the **inbound route from Liverpool Street to Ki
 
 #### Real-time Behavior
 - **Daily Check**: Service checks current date against event calendar
-- **Time-based Status**: Disruptions marked as active only during 16:00-23:00 window
+- **Time-based Status**: Disruptions marked as active only during 13:00-23:00 window
 - **Event Detection**: Creates disruption entries automatically for detected event days
 - **Multi-event Support**: Handles multiple events on the same day
 
@@ -562,8 +562,22 @@ On a Wembley event day (e.g., October 19, 2025), users viewing the Liverpool Str
 Bus 206 service disrupted due to Wembley Stadium event: Jacksonville Jaguars 2025. 
 Bus 206 does not enter Wembley area - northernmost stop is Brent Park Tesco. 
 Wembley Park Station to Kingfisher Way stops not served.
-Active: 16:00 - 23:00
+Active: 13:00 - 23:00
 ```
+
+### Time Window Update
+
+The disruption time window was revised from the original 16:00-23:00 to **13:00-23:00** to provide earlier notification of service changes. This adjustment:
+
+- **Extended Coverage**: Provides 3 additional hours of advance notice
+- **Better User Experience**: Users are informed earlier in the day about evening service disruptions
+- **Operational Alignment**: Reflects typical event day preparation and crowd management periods
+
+#### Implementation Changes Made:
+- Updated `RouteDisruptionService.getWembleyEventDisruptions()` to set start time to 13:00
+- Modified all test cases to use 15:00 as the test time within the new window
+- Added specific test for 13:00 boundary validation
+- Updated time range validation tests to reflect new 13:00-23:00 window
 
 This feature ensures users are always informed about planned service changes related to major events at Wembley Stadium.
 
