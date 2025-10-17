@@ -8,12 +8,15 @@ This application tracks disruptions on three specific commuting routes by monito
 
 ## Features
 
-- Real-time monitoring of TfL disruptions using public APIs
-- Route-based organization of disruptions
-- Support for both outbound and inbound journeys
-- Integration with multiple TfL services (buses, underground, and Elizabeth line)
-- Automatic data refresh every 5 minutes
-- Mobile-friendly responsive design
+- **Real-time Disruption Monitoring**: Fetches live data from TfL APIs
+- **Route-based Organization**: Groups disruptions by specific transport routes
+- **Wembley Event Day Integration**: Automatic detection and notification of service changes during Wembley Stadium events
+- **Intelligent Grouping**: Consolidates duplicate disruptions for cleaner display
+- **Multiple Data Sources**: Combines line status, stop-point disruption data, and external event calendars
+- **Support for Multiple Journeys**: Both outbound and inbound routes
+- **Integration with Multiple Services**: Buses, underground, Elizabeth line, and event APIs
+- **Automatic Updates**: Refreshes disruption data every 5 minutes
+- **Mobile-friendly Design**: Responsive interface for all devices
 
 ## 🛣️ Monitored Routes
 
@@ -77,10 +80,12 @@ npm run lint:fix     # Fix linting issues
 src/
 ├── components/        # React components
 │   ├── DisruptionCard     # Display individual disruptions
+│   ├── GroupedDisruptionCard # Display grouped disruptions
 │   ├── RouteCard         # Display route information
 │   └── RouteSegmentDisplay # Visualize route segments
 ├── services/
 │   ├── tflApi           # TfL API client
+│   ├── wembleyEventService # Wembley event detection
 │   └── routeDisruptionService  # Disruption processing
 ├── types/
 │   └── tfl.ts          # TfL API type definitions
@@ -90,28 +95,41 @@ src/
 
 ### Key Components
 
-The application is built with three main service layers:
+The application is built with four main service layers:
 
 1. **TfL API Integration** (`tflApi.ts`)
    - Handles communication with TfL APIs
    - Implements batched requests for better performance
    - Processes API responses into consistent formats
 
-2. **Route Disruption Service** (`routeDisruptionService.ts`)
-   - Maps disruptions to specific routes
-   - Tracks both stop point and line disruptions
-   - Processes bi-directional route information
+2. **Wembley Event Service** (`wembleyEventService.ts`)
+   - Integrates with Brent Council API for Wembley Stadium events
+   - Handles precise multipart/form-data API requests
+   - Provides event day detection and upcoming event queries
 
-3. **React Components**
+3. **Route Disruption Service** (`routeDisruptionService.ts`)
+   - Maps disruptions to specific routes
+   - Tracks stop point, line, and event-based disruptions
+   - Processes bi-directional route information
+   - Groups TfL disruptions while keeping event disruptions separate
+
+4. **React Components**
    - Route-based display of disruptions
+   - Grouped and individual disruption views
    - Real-time updates with 5-minute refresh
    - Mobile-responsive design
 
-## TfL API Integration
+## API Integration
 
+### TfL APIs
 The application uses two main TfL API endpoints:
-- Line Disruptions: `https://api.tfl.gov.uk/Line/{line_ids}/Disruption`
-- Stop Point Disruptions: `https://api.tfl.gov.uk/StopPoint/{stop_point_ids}/Disruption`
+- **Line Disruptions**: `https://api.tfl.gov.uk/Line/{line_ids}/Disruption`
+- **Stop Point Disruptions**: `https://api.tfl.gov.uk/StopPoint/{stop_point_ids}/Disruption`
+
+### Wembley Event API
+- **Brent Council Events**: `https://gurdasani.com/brent-api/search/list`
+- **Method**: POST with multipart/form-data
+- **Purpose**: Detect Wembley Stadium event days for service impact predictions
 
 ### Monitored Services
 
@@ -144,6 +162,53 @@ The project follows a test-driven development approach with:
 4. Add tests for new functionality
 5. Ensure all tests pass
 6. Submit a pull request
+
+## Wembley Event Day Integration
+
+The application includes specialized functionality to automatically detect Wembley Stadium event days and generate appropriate service disruptions.
+
+### Key Features
+
+- **Automatic Event Detection**: Integrates with Brent Council API to fetch upcoming Wembley Stadium events
+- **Route-Specific Impact**: Targets only the inbound route from Liverpool Street to Kingfisher Way via Wembley Park Station
+- **Time-Based Activation**: Disruptions are active from 13:00-23:00 on event days
+- **Real-Time Status**: Shows active/inactive status based on current time
+- **Service Details**: Provides specific information about Bus 206 service changes
+
+### How It Works
+
+1. **Event Calendar Sync**: Daily checks against Brent Council's event calendar
+2. **Route Targeting**: Only affects `route1-inbound` (Liverpool Street → Kingfisher Way via Wembley Park)
+3. **Service Impact**: On event days, Bus 206 cannot enter Wembley area
+4. **Alternative Stops**: Northernmost stop becomes Brent Park Tesco
+5. **Affected Stations**: Wembley Park Station through Kingfisher Way stops not served
+
+### Technical Implementation
+
+- **WembleyEventService**: Handles API integration with Brent Council event system
+- **Multipart Form Data**: Precise HTTP request formatting for API compatibility
+- **Data Separation**: Wembley disruptions kept separate from TfL-sourced data
+- **Error Handling**: Graceful degradation when event API is unavailable
+- **Comprehensive Testing**: Full test coverage including API format validation
+
+### Example Output
+
+On a Wembley event day, users see:
+
+```
+🚌 Wembley Event Day Service Change
+Bus 206 service disrupted due to Wembley Stadium event: [Event Name]
+Bus 206 does not enter Wembley area - northernmost stop is Brent Park Tesco.
+Wembley Park Station to Kingfisher Way stops not served.
+Active: 13:00 - 23:00
+```
+
+### Data Source Separation
+
+The application maintains clear separation between different disruption sources:
+- **TfL Disruptions**: Official transport authority data (grouped together)
+- **Wembley Event Disruptions**: Event-based service predictions (displayed separately)
+- **Benefits**: Ensures data integrity and source transparency for users
 
 ## License
 
