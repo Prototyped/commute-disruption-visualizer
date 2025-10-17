@@ -1,15 +1,18 @@
 import { TflApiClient } from './tflApi';
 import { RouteDefinition, RouteDisruptions, ProcessedDisruption, GroupedDisruption } from '../types/tfl';
 import { ALL_ROUTES, ALL_LINE_IDS, getAllStopPointIds } from '../data/routes';
+import { WembleyEventService } from './wembleyEventService';
 
 /**
  * Service for managing route-based disruption data
  */
 export class RouteDisruptionService {
   private tflClient: TflApiClient;
+  private wembleyEventService: WembleyEventService;
 
-  constructor(tflClient?: TflApiClient) {
+  constructor(tflClient?: TflApiClient, wembleyEventService?: WembleyEventService) {
     this.tflClient = tflClient || new TflApiClient();
+    this.wembleyEventService = wembleyEventService || new WembleyEventService();
   }
 
   /**
@@ -28,9 +31,13 @@ export class RouteDisruptionService {
       const processedStopDisruptions = this.tflClient.processStopPointDisruptions(stopDisruptions);
 
       // Map disruptions to routes
-      return ALL_ROUTES.map(route => 
-        this.mapDisruptionsToRoute(route, processedLineDisruptions, processedStopDisruptions)
+      const routeDisruptions = await Promise.all(
+        ALL_ROUTES.map(route => 
+          this.mapDisruptionsToRoute(route, processedLineDisruptions, processedStopDisruptions)
+        )
       );
+      
+      return routeDisruptions;
     } catch (error) {
       console.error('Error fetching route disruptions:', error);
       throw new Error(`Failed to fetch route disruptions: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -61,7 +68,7 @@ export class RouteDisruptionService {
       const processedLineDisruptions = this.tflClient.processLineStatusResponses(lineStatusResponses);
       const processedStopDisruptions = this.tflClient.processStopPointDisruptions(stopDisruptions);
 
-      return this.mapDisruptionsToRoute(route, processedLineDisruptions, processedStopDisruptions);
+      return await this.mapDisruptionsToRoute(route, processedLineDisruptions, processedStopDisruptions);
     } catch (error) {
       console.error(`Error fetching disruptions for route ${routeId}:`, error);
       throw new Error(`Failed to fetch disruptions for route ${routeId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -71,11 +78,11 @@ export class RouteDisruptionService {
   /**
    * Map processed disruptions to a specific route
    */
-  private mapDisruptionsToRoute(
+  private async mapDisruptionsToRoute(
     route: RouteDefinition,
     lineDisruptions: ProcessedDisruption[],
     stopDisruptions: ProcessedDisruption[]
-  ): RouteDisruptions {
+  ): Promise<RouteDisruptions> {
     const routeLineIds = this.getRouteLineIds(route);
     const routeStopIds = this.getRouteStopPointIds(route);
 
@@ -106,15 +113,19 @@ export class RouteDisruptionService {
       (disruption.stationAtcoCode && routeStopIds.includes(disruption.stationAtcoCode))
     );
 
-    // Group disruptions by description text
-    const allDisruptions = [...relevantLineDisruptions, ...relevantStopDisruptions];
-    const groupedDisruptions = this.groupDisruptionsByDescription(allDisruptions);
+    // Check for Wembley event day disruptions
+    const wembleyEventDisruptions = await this.getWembleyEventDisruptions(route);
+
+    // Group disruptions by description text (only TfL sourced disruptions)
+    const tflDisruptions = [...relevantLineDisruptions, ...relevantStopDisruptions];
+    const groupedDisruptions = this.groupDisruptionsByDescription(tflDisruptions);
 
     return {
       route,
       lineDisruptions: relevantLineDisruptions,
       stopDisruptions: relevantStopDisruptions,
       groupedDisruptions,
+      wembleyEventDisruptions,
     };
   }
 
@@ -204,6 +215,7 @@ export class RouteDisruptionService {
 
   /**
    * Group disruptions by identical description text
+   * Only groups TfL sourced disruptions (excludes Wembley event disruptions)
    */
   private groupDisruptionsByDescription(disruptions: ProcessedDisruption[]): GroupedDisruption[] {
     // Group by exact description match
@@ -313,5 +325,101 @@ export class RouteDisruptionService {
     });
 
     return groupedDisruptions;
+  }
+
+  /**
+   * Get Wembley event day disruptions for a specific route
+   * Only affects the inbound route from Liverpool Street to Kingfisher Way via Wembley Park
+   */
+  private async getWembleyEventDisruptions(route: RouteDefinition): Promise<ProcessedDisruption[]> {
+    // Only check for the specific route: Liverpool Street to Kingfisher Way via Wembley Park (inbound)
+    if (route.id !== 'route1-inbound') {
+      return [];
+    }
+
+    try {
+      const today = new Date();
+      const { isEventDay, events } = await this.wembleyEventService.isWembleyEventDay(today);
+
+      if (!isEventDay || events.length === 0) {
+        return [];
+      }
+
+      // Create disruption for each event (though typically there's one per day)
+      return events.map(event => {
+        const eventDate = new Date(event.date);
+        const startTime = new Date(eventDate);
+        startTime.setHours(16, 0, 0, 0); // 16:00 start time
+        
+        const endTime = new Date(eventDate);
+        endTime.setHours(23, 0, 0, 0); // 23:00 end time
+
+        const disruption: ProcessedDisruption = {
+          id: `wembley-event-${event.id}`,
+          type: 'Wembley Event Day Service Change',
+          description: `Bus 206 service disrupted due to Wembley Stadium event: ${event.title}. Bus 206 does not enter Wembley area - northernmost stop is Brent Park Tesco. Wembley Park Station to Kingfisher Way stops not served.`,
+          mode: 'bus',
+          startDate: startTime,
+          endDate: endTime,
+          isActive: this.isTimeInRange(new Date(), startTime, endTime),
+          source: 'line' as const,
+          lineId: '206',
+          affectedStopPoints: [
+            '490000257O', // Wembley Park Station (inbound)
+            '490G00006565', // Empire Way
+            '490G00007063', // Fulton Road
+            '490G00011818', // Rutherford Way
+            '490G00010593', // Olympic Way
+            '490G00006858', // First Way
+            '490G00013614', // Third Way
+            '490G00007753', // Hannah Close
+          ],
+          affectedRoutes: [{
+            $type: 'Tfl.Api.Presentation.Entities.AffectedRoute, Tfl.Api.Presentation.Entities',
+            id: '206-inbound-wembley',
+            name: 'Bus 206 Inbound',
+            direction: 'inbound',
+            originationName: 'Wembley Park Station',
+            destinationName: 'Kingfisher Way',
+            isEntireRouteSection: false,
+            routeSectionNaptanEntrySequence: [
+              {
+                $type: 'Tfl.Api.Presentation.Entities.RouteSectionNaptanEntry, Tfl.Api.Presentation.Entities',
+                ordinal: 1,
+                stopPoint: {
+                  $type: 'Tfl.Api.Presentation.Entities.StopPoint, Tfl.Api.Presentation.Entities',
+                  naptanId: '490000257O',
+                  id: '490000257O',
+                  commonName: 'Wembley Park Station',
+                  placeType: 'StopPoint',
+                  modes: ['bus'],
+                  icsCode: '',
+                  lineGroup: [],
+                  lineModeGroups: [],
+                  status: false,
+                  lat: 51.5635,
+                  lon: -0.2795,
+                  lines: [],
+                  additionalProperties: [],
+                  children: []
+                }
+              }
+            ]
+          }]
+        };
+
+        return disruption;
+      });
+    } catch (error) {
+      console.error('Error checking Wembley event disruptions:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if current time is within the specified range
+   */
+  private isTimeInRange(current: Date, start: Date, end: Date): boolean {
+    return current >= start && current <= end;
   }
 }

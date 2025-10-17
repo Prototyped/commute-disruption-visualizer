@@ -466,3 +466,187 @@ The grouping algorithm works as follows:
 - **After Grouping**: 1 card showing "Severe delays due to incident" affecting "Stop A, Stop B, Stop C and 2 more"
 
 This enhancement significantly improves the readability and usability of the disruption information while maintaining all the underlying data integrity and functionality.
+
+## Wembley Event Day Integration
+
+A specialized feature was implemented to automatically detect Wembley Stadium event days and generate appropriate disruptions for affected routes. This integration provides real-time awareness of scheduled transport changes during major events.
+
+### Implementation Details
+
+#### Key Files Added/Modified
+
+1. **`src/services/wembleyEventService.ts`** (New)
+   - Service for fetching Wembley Stadium event data from Brent Council API
+   - Handles multipart form data API requests with precise carriage return formatting
+   - Provides methods to check if a date is an event day and get upcoming events
+   - Processes raw API responses into normalized `WembleyEvent` objects
+
+2. **`src/services/routeDisruptionService.ts`** (Enhanced)
+   - Integrated `WembleyEventService` to check for event day disruptions
+   - Added `getWembleyEventDisruptions()` method targeting specific route
+   - Enhanced `mapDisruptionsToRoute()` to include Wembley event disruptions
+   - Made service methods async to handle event day API calls
+
+3. **`src/types/tfl.ts`** (Enhanced)
+   - Extended `RouteDisruptions` interface with `wembleyEventDisruptions` field
+   - Maintains separation between TfL API disruptions and event-based disruptions
+
+4. **Test Files** (New)
+   - `src/services/__tests__/wembleyEventService.test.ts`
+   - `src/services/__tests__/routeDisruptionService.wembley.test.ts`
+
+### Event Day Disruption Logic
+
+The system specifically monitors the **inbound route from Liverpool Street to Kingfisher Way via Wembley Park Station** (route1-inbound) for Wembley event day impacts:
+
+#### Disruption Details
+- **Affected Route**: Only `route1-inbound` (Liverpool Street → Kingfisher Way via Wembley Park)
+- **Affected Service**: Bus 206 inbound direction
+- **Time Window**: 16:00 - 23:00 on event days
+- **Impact**: Bus 206 does not enter Wembley area; northernmost stop becomes Brent Park Tesco
+- **Affected Stops**: 
+  - Wembley Park Station (490000257O)
+  - Empire Way (490G00006565)
+  - Fulton Road (490G00007063)
+  - Rutherford Way (490G00011818)
+  - Olympic Way (490G00010593)
+  - First Way (490G00006858)
+  - Third Way (490G00013614)
+  - Hannah Close (490G00007753)
+
+#### API Integration
+- **Source**: Brent Council API (`https://gurdasani.com/brent-api/search/list`)
+- **Method**: POST with multipart/form-data
+- **Filter**: Wembley Stadium events with specific template criteria
+- **Response Processing**: Extracts event title, date, and venue information
+
+#### Real-time Behavior
+- **Daily Check**: Service checks current date against event calendar
+- **Time-based Status**: Disruptions marked as active only during 16:00-23:00 window
+- **Event Detection**: Creates disruption entries automatically for detected event days
+- **Multi-event Support**: Handles multiple events on the same day
+
+### Testing Strategy
+
+#### Unit Tests Coverage
+1. **API Response Parsing**: Validates correct processing of Brent Council API responses
+2. **Event Day Detection**: Tests date matching logic for various scenarios
+3. **Route Targeting**: Ensures disruptions only apply to the correct route
+4. **Time Window Logic**: Verifies active/inactive status based on current time
+5. **Error Handling**: Tests graceful degradation when API is unavailable
+6. **Integration**: Validates inclusion in grouped disruptions display
+
+#### Test Scenarios
+- ✅ Event day during disruption hours → Active disruption created
+- ✅ Event day outside disruption hours → Inactive disruption created  
+- ✅ Non-event day → No disruption created
+- ✅ Wrong route → No disruption created
+- ✅ API errors → Graceful fallback
+- ✅ Multiple events → Multiple disruption entries
+
+### Benefits
+
+1. **Proactive Information**: Users receive advance notice of service changes
+2. **Real-time Status**: Disruptions activate/deactivate based on actual time windows
+3. **Targeted Impact**: Only affects the specific route and direction impacted
+4. **Reliable Source**: Uses official Brent Council event data
+5. **Automated Detection**: No manual intervention required for event day monitoring
+6. **Consistent UX**: Integrates seamlessly with existing disruption display system
+
+### Usage Example
+
+On a Wembley event day (e.g., October 19, 2025), users viewing the Liverpool Street to Kingfisher Way route would see:
+
+```
+🚌 Wembley Event Day Service Change
+Bus 206 service disrupted due to Wembley Stadium event: Jacksonville Jaguars 2025. 
+Bus 206 does not enter Wembley area - northernmost stop is Brent Park Tesco. 
+Wembley Park Station to Kingfisher Way stops not served.
+Active: 16:00 - 23:00
+```
+
+This feature ensures users are always informed about planned service changes related to major events at Wembley Stadium.
+
+## Data Source Separation and Grouping Logic
+
+An important architectural decision was made to maintain clear separation between different data sources in the disruption system:
+
+### Grouping Policy
+- **TfL Sourced Disruptions**: Only disruptions from TfL Line Status API and TfL StopPoint Disruptions API are included in the grouped disruptions view
+- **Wembley Event Disruptions**: Kept separate in their own field (`wembleyEventDisruptions`) and displayed independently
+- **Rationale**: This separation ensures data integrity and prevents mixing official TfL data with external event-based predictions
+
+### Implementation Changes
+The `groupDisruptionsByDescription()` method was modified to:
+- Only process TfL-sourced disruptions (line and stop point disruptions)
+- Exclude Wembley event day disruptions from the grouping logic
+- Maintain clear boundaries between official transport data and event-based service predictions
+
+### Benefits of Separation
+1. **Data Integrity**: Official TfL disruption data remains uncontaminated by external predictions
+2. **Source Transparency**: Users can distinguish between official disruptions and event-based service changes
+3. **Simplified Logic**: Grouping algorithm focuses solely on official TfL data patterns
+4. **Maintainability**: Different data sources can be updated independently without affecting each other
+
+This architectural approach ensures that the system remains reliable and that users can clearly understand the source and nature of different types of disruption information.
+
+## Multipart Form Data Implementation
+
+A critical fix was implemented to ensure the Wembley Event API requests match the exact format required by the Brent Council API.
+
+### Technical Details
+
+The multipart/form-data format is highly prescriptive and requires precise line ending handling:
+
+#### Original Incorrect Implementation
+```javascript
+// INCORRECT: Concatenated lines without proper separators
+const formData = [
+  `--${boundary}${cr}`,
+  `Content-Disposition: form-data; name="searchQuery"${cr}`,
+  // ... other parts
+].join('');
+```
+
+#### Final Corrected Implementation
+```javascript
+// CORRECT: Every line must end with carriage return + line feed (\r\n)
+const boundary = 'bucees';
+const crlf = '\r\n';
+
+const formData = [
+  `--${boundary}${crlf}`,
+  `Content-Disposition: form-data; name="searchQuery"${crlf}`,
+  `${crlf}`,
+  `${JSON.stringify(searchQuery)}${crlf}`,
+  `--${boundary}--${crlf}`
+].join('');
+```
+
+### Key Requirements Addressed
+
+1. **Exact Format Matching**: The implementation now precisely matches the cURL command format
+2. **Universal CRLF Endings**: Every single line must end with carriage return + line feed (`\r\n`)
+3. **Final Line Termination**: The closing boundary line also requires CRLF termination
+4. **Boundary Handling**: Correct multipart boundary markers with proper termination
+5. **Content Disposition**: Exact header formatting for form field identification
+
+### Testing Enhancements
+
+Added comprehensive test coverage for the API request format:
+
+- **Format Validation**: Tests verify the exact multipart structure matches the cURL specification
+- **Universal CRLF Testing**: Ensures every line ends with `\r\n`, including the final boundary
+- **Complete Line Validation**: Verifies no line is missing CRLF ending by checking split results
+- **Boundary Testing**: Validates correct boundary markers and termination sequences
+- **JSON Payload Integrity**: Confirms the search query JSON is properly embedded
+- **Final Termination Check**: Specifically tests that the last boundary ends with CRLF
+
+### Benefits of Correct Implementation
+
+1. **API Compatibility**: Ensures reliable communication with Brent Council API
+2. **Specification Compliance**: Adheres to RFC 7578 multipart/form-data standard
+3. **Reliability**: Prevents request failures due to format mismatches
+4. **Maintainability**: Clear separation of lines makes the format easier to understand and modify
+
+This fix ensures that the Wembley event day feature functions reliably by maintaining strict adherence to the API's expected request format.

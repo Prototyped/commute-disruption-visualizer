@@ -277,4 +277,5 @@ export interface RouteDisruptions {
   lineDisruptions: ProcessedDisruption[];
   stopDisruptions: ProcessedDisruption[];
   groupedDisruptions: GroupedDisruption[]; // New grouped view
+  wembleyEventDisruptions: ProcessedDisruption[]; // Wembley event day disruptions
 }

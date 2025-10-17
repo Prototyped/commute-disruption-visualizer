@@ -463,3 +463,100 @@ the unused code:
 The LLM went through and removed the now unused React component and dependency
 code (such as imports), and also found unused source from the initial
 TypeScript project.
+
+## Using Wembley Event Day information to indicate disruption to Wembley route
+
+On Wembley event days, bus 206 is curtailed north of the Brent Park Tesco (T)
+stop in the afternoon/evening. This means I can't get home from Wembley Park
+Station in a straightforward manner, as the bus that would take me home from
+the station doesn't come to the station (and in fact does not enter the Wembley
+area). I set up nginx to proxy the event list API called via XHR from the
+London Borough of Brent Council's website (because it isn't CORS-enabled) and
+prompted Rovo to consume it to determine whether it is the afternoon or evening
+of a Wembley Event Day, and show the inbound route via Wembley Park to be
+disrupted if it is.
+
+>Examine this API request carefully.
+>
+>```
+>cr=$'\r'; curl --request POST --url https://gurdasani.com/brent-api/search/list --header 'accept: application/json' --header 'content-type: multipart/form-data; boundary=bucees' --data-binary @/dev/stdin <<EOF
+>--bucees$cr
+>Content-Disposition: form-data; name="searchQuery"$cr
+>$cr
+>{"search":"","facets":["brent_item_venue","brent_item_area","brent_item_date"],"filter":"(brent_item_venue/any(t: t eq 'Wembley Stadium')) and (template_1 eq '7bcaf87fb19f48e28b09754cfa20468d' or template_1 eq '672bebc02617450aa2e13d4ea5042a4d') and brent_item_has_layout and path_1/any(t:t eq '110d559fdea542ea9c1c8a5df7e70ef9')","orderBy":["brent_item_date"],"searchType":"Events","size":25,"orderDirection":"ASC"}$cr
+>--bucees--$cr
+>EOF
+>```
+>
+>The cURL command is to execute a POST request to
+>https://gurdasani.com/brent-api/search/list with a multipart/form-data body
+>containing a single part with the name "searchQuery". This part contains a
+>JSON payload. Note that each line in the request body must end with a carriage
+>return and line feed. The `$cr` variable is set to the value of a carriage
+>return, and the command line is executed on Linux, where a new line is just a
+>line feed character. The request needs to be made precisely.
+>
+>Run this command and examine the response shape. It contains the schedule of
+>upcoming Wembley event days. Note that the date of these events is included.
+>
+>If today is a Wembley event day, the inbound route from Liverpool Street to
+>Kingfisher Way via Wembley Park Station will be disrupted from about 16:00
+>until about 23:00. This is because on Wembley Event Days, bus 206 does not
+>enter the Wembley area; its northernmost stop becomes Brent Park Tesco, and it
+>does not serve stops at Wembley Park Station through Hannah Close at those
+>times.
+>
+>Use this API request as an additional source of information that specifically
+>the inbound direction of specifically the route involving bus 206 and the
+>Metropolitan line, that is, the route from Liverpool Street Station to
+>Kingfisher Way via Wembley Park Station, is disrupted. Add a disruption card
+>showing the details of the ongoing event, if today is a Wembley Event Day. If
+>today is not a Wembley Event Day according to the results of the API request,
+>ignore the API response.
+>
+>Add tests ensuring that the API response is correctly parsed; that if the day
+>is a Wembley Event Day; that the specified route captures it as a disruption;
+>that if the day is not a Wembley Event Day, that no event in the API response
+>is captured as a disruption to the specified route.
+>
+>Update INSTRUCTIONS.md with details the changes that you have made.
+
+The LLM did the work, but didn't check for linting errors. Next prompt:
+
+>Make sure all tests run via running the command `npm run test` pass and that
+>there are no linting errors or warnings encountered via running the command
+>`npm run lint`.
+
+Examining the implementation, the LLM had done the work, but also ended up
+trying to group together the Wembley Event Day disruptions with the TfL-sourced
+disruptions. This would mean that the Wembley Event Day disruptions would be
+displayed twice, which is undesirable. I prompted the LLM to keep the Wembley
+Event Day disruptions separate from the TfL-sourced disruptions.
+
+>Change and simplify the implementation so that Wembley Event Day based
+>disruptions are not grouped alongside TfL sourced disruption information. The
+>grouped disruptions must only consider disruptions sourced from the TfL Line
+>Status API and the TfL StopPoint Disruptions API. Update the tests accordingly
+>and update INSTRUCTIONS.md with the work you have done. Ensure that test runs
+>via `npm run test` continue to pass and that there are no linting errors or
+>warnings reported by `npm run lint`.
+
+Examining the code, I found that the LLM had decided to just concatenate the
+text making up each line of the multipart/form-data request body together, even
+though they needed to be separate lines (using carriage return and line
+feed). It took two prompts to get the LLM to fix this.
+
+>When you join the lines for `formData`, you are effectively concatenating them
+>together. Check your context: these are meant to be separate lines. The format
+>of multipart/form-data is very prescriptive. Do not diverge at all from the
+>format of the request as embodied in the cURL command I provided you. Update
+>the tests accordingly, and add a test that tests the API request shape is
+>correct. Ensure all tests pass and that there are no linting errors or
+>warnings. Update INSTRUCTIONS.md accordingly.
+
+and
+
+>The last line of the request body also needs to end in a carriage return and
+>line feed. Update the implementation and tests accordingly, ensure all tests
+>pass, ensure there are no linting errors or warnings, and rework
+>INSTRUCTIONS.md accordingly.
