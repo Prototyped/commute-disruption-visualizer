@@ -36,14 +36,14 @@ This application tracks disruptions on three specific commuting routes by monito
 
 ### Prerequisites
 - Node.js (v16 or higher)
-- npm or yarn
+- npm
 
 ### Installation
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd tfl-disruption-monitor
+cd commute-disruption-visualizer
 
 # Install dependencies
 npm install
@@ -56,20 +56,20 @@ npm run dev
 
 ```bash
 # Development
-npm run start        # Start development server
-npm run build:watch  # Watch mode compilation
+npm run dev          # Webpack dev server
+npm run start        # Alias for dev server
 
 # Production
-npm run build        # Create production build
+npm run build        # Production webpack build
 npm run clean        # Clean build artifacts
 
 # Testing
-npm run test         # Run tests
-npm run test:watch   # Run tests in watch mode
+npm run test         # Jest test runner
+npm run test:watch   # Jest in watch mode
 
 # Code Quality
-npm run lint         # Run ESLint
-npm run lint:fix     # Fix linting issues
+npm run lint         # ESLint (`.ts` + `.tsx`)
+npm run lint:fix     # ESLint with --fix
 ```
 
 ## Technical Implementation
@@ -78,52 +78,59 @@ npm run lint:fix     # Fix linting issues
 
 ```
 src/
-├── components/        # React components
-│   ├── DisruptionCard     # Display individual disruptions
-│   ├── GroupedDisruptionCard # Display grouped disruptions
-│   ├── RouteCard         # Display route information
-│   └── RouteSegmentDisplay # Visualize route segments
+├── __tests__/              # Shared test utilities
+│   └── styleMock.js            # CSS module mock for Jest
+├── components/             # React components
+│   ├── __tests__/
+│   │   └── RouteCard.test.tsx      # Component tests
+│   ├── GroupedDisruptionCard.tsx   # Grouped TfL disruptions
+│   ├── RouteCard.tsx               # Route-level disruption display
+│   ├── RouteCard.css
+│   ├── RouteSegmentDisplay.tsx     # Visualize route segments
+│   └── RouteSegmentDisplay.css
 ├── services/
-│   ├── tflApi           # TfL API client
-│   ├── wembleyEventService # Wembley event detection
-│   └── routeDisruptionService  # Disruption processing
+│   ├── __tests__/              # Service-layer tests
+│   ├── routeDisruptionService.ts   # Map disruptions to routes
+│   ├── tflApi.ts               # TfL API client
+│   └── wembleyEventService.ts  # Wembley event detection
 ├── types/
-│   └── tfl.ts          # TfL API type definitions
-└── data/
-    └── routes.ts       # Route definitions
+│   └── tfl.ts              # TfL API type definitions
+├── data/
+│   └── routes.ts           # Route definitions
+└── utils/                  # Shared utilities
 ```
 
 ### Key Components
 
-The application is built with four main service layers:
+The application is built with five main layers:
 
 1. **TfL API Integration** (`tflApi.ts`)
-   - Handles communication with TfL APIs
-   - Implements batched requests for better performance
-   - Processes API responses into consistent formats
+   - Batched requests (max 10 IDs) to Line Status and Stop Point Disruption endpoints
+   - Extracts structured data from `lineStatuses[].disruption.affectedRoutes[]`
 
 2. **Wembley Event Service** (`wembleyEventService.ts`)
-   - Integrates with Brent Council API for Wembley Stadium events
-   - Handles precise multipart/form-data API requests
-   - Provides event day detection and upcoming event queries
+   - Brent Council API via multipart/form-data POST (proxied through nginx)
+   - Event day detection and upcoming event queries
 
 3. **Route Disruption Service** (`routeDisruptionService.ts`)
-   - Maps disruptions to specific routes
-   - Tracks stop point, line, and event-based disruptions
-   - Processes bi-directional route information
-   - Groups TfL disruptions while keeping event disruptions separate
+   - Maps disruptions to routes by matching stop identifiers (`naptanId`, `id`, `stationNaptan`, `atcoCode`, `stationAtcoCode`)
+   - Groups duplicate TfL disruptions; keeps Wembley event disruptions separate
+   - Generates synthetic disruptions for Wembley event days (bus 206 curtailment)
 
 4. **React Components**
-   - Route-based display of disruptions
-   - Grouped and individual disruption views
-   - Real-time updates with 5-minute refresh
-   - Mobile-responsive design
+   - `RouteCard` — collapses/expands per route; renders grouped TfL and separate Wembley event disruptions
+   - `GroupedDisruptionCard` — deduplicated disruption display
+   - `RouteSegmentDisplay` — visual route segment breakdown
+
+5. **Modal Loading Overlay**
+   - Fixed fullscreen backdrop with centered spinner card during all loading states (initial load and refreshes)
+   - Refresh button does not spin; it is simply disabled during loading
 
 ## API Integration
 
 ### TfL APIs
 The application uses two main TfL API endpoints:
-- **Line Disruptions**: `https://api.tfl.gov.uk/Line/{line_ids}/Disruption`
+- **Line Status** (with detail): `https://api.tfl.gov.uk/Line/{line_ids}/Status?detail=true` — the primary source of disruption data, including affected stop points
 - **Stop Point Disruptions**: `https://api.tfl.gov.uk/StopPoint/{stop_point_ids}/Disruption`
 
 ### Wembley Event API
@@ -147,12 +154,11 @@ The application uses two main TfL API endpoints:
 
 ## Development
 
-The project follows a test-driven development approach with:
-- TypeScript for type safety
-- Jest for testing
+- TypeScript throughout
+- Jest with `ts-jest` for testing; component tests use `@jest-environment jsdom` and `@testing-library/react`
+- CSS moduleNameMapper mocks `.css` imports for Jest (`src/__tests__/styleMock.js`)
 - ESLint for code quality
-- React for UI components
-- CSS Modules for styling
+- Plain CSS files (not CSS Modules)
 
 ## Contributing
 

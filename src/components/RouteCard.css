@@ -71,6 +71,26 @@
   color: #6c757d;
 }
 
+.disruption-count.wembley {
+  color: #e67e22;
+  font-weight: 600;
+}
+
+.wembley-disruptions-section {
+  margin-top: 16px;
+  background: #fef9e7;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #f9e79f;
+}
+
+.wembley-disruptions-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e67e22;
+}
+
 .route-expand-icon {
   font-size: 1rem;
   color: #6c757d;

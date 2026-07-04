@@ -117,7 +117,7 @@ const App: React.FC = () => {
               onClick={handleRefresh}
               disabled={state.loading}
             >
-              {state.loading ? '⟳' : '🔄'} Refresh
+              🔄 Refresh
             </button>
             
             <button 
@@ -144,10 +144,12 @@ const App: React.FC = () => {
       </header>
 
       <main className="app-main">
-        {state.loading && state.routeDisruptions.length === 0 && (
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <p>Loading disruption information...</p>
+        {state.loading && (
+          <div className="loading-overlay">
+            <div className="loading-modal">
+              <div className="loading-spinner"></div>
+              <p>{state.routeDisruptions.length === 0 ? 'Loading disruption information...' : 'Refreshing disruption information...'}</p>
+            </div>
           </div>
         )}
 
