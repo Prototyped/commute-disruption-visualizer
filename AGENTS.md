@@ -147,6 +147,10 @@ TflStopPointDisruption:
 7. **`RouteCard`** renders each route as a collapsible card. `GroupedDisruptionCard` shows deduplicated TfL disruptions. Bus 206 curtailment disruptions render separately under "206 Curtailment Notice" without timestamps.
 8. **Loading overlay**: `.loading-overlay` + `.loading-modal` fullscreen modal shows during all loading states (initial load and refreshes). Refresh button is disabled during loading but does not spin.
 
+### Disruption filtering
+
+- **Step-free access notices**: Disruptions whose description contains "step free" or "step-free" (case insensitive) are filtered out before route matching. These are accessibility notices about lift/escalator outages, not service disruptions that affect able-bodied passengers. Filtering applies to both line and stop point disruptions in `mapDisruptionsToRoute()`.
+
 ### Route matching logic
 
 - **Line disruptions**: Check `disruption.lineId` matches a route segment's `lineId`. If `affectedStopPoints` exists (most granular), match those against route stop IDs. If absent, check `affectedRoutes` entries by iterating `routeSectionNaptanEntrySequence` and matching `naptanId`/`id`/`stationNaptan` against route stop IDs. If no specific stops listed, include disruption (affects entire line).
@@ -211,6 +215,7 @@ RouteSegment:
 ## Implementation Notes
 
 - **Line Status API is preferred over Line Disruption API**. The latter never populates `affectedRoutes`/`affectedStops`.
+- **Step-free access notices are filtered out** in `mapDisruptionsToRoute()` before route matching. Disruptions with "step free" or "step-free" (case insensitive) in the description are excluded as they describe accessibility issues, not service disruptions for able-bodied passengers.
 - **Check both `affectedRoutes` and `affectedStopPoints`**. The former is typically populated; the latter is usually empty but more granular when present. Prefer `affectedStopPoints` when non-empty.
 - **Stop point matching must check `naptanId`, `id`, and `stationNaptan`** from `routeSectionNaptanEntrySequence` entries, plus `atcoCode` and `stationAtcoCode` from Stop Point Disruption responses.
 - **Bus stop identifiers differ by direction**. Inbound and outbound bus routes use different stop point IDs even when the common name is the same. Rail line identifiers are the same in both directions.

@@ -154,7 +154,8 @@ export class TflApiClient {
       source: 'line',
       lineId: lineId,
       affectedStopPoints: this.extractAffectedStopPoints(disruption),
-      affectedRoutes: disruption.affectedRoutes
+      affectedRoutes: disruption.affectedRoutes,
+      category: disruption.category
     };
   }
 

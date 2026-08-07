@@ -18,6 +18,7 @@ describe('RouteDisruptionService', () => {
     mockTflClient.getStopPointDisruptions = jest.fn();
     mockTflClient.processLineStatusResponses = jest.fn();
     mockTflClient.processStopPointDisruptions = jest.fn();
+    mockTflClient.isBus206Curtailed = jest.fn().mockResolvedValue(false);
 
     service = new RouteDisruptionService(mockTflClient);
   });
@@ -120,6 +121,159 @@ describe('RouteDisruptionService', () => {
     it('should return all routes', () => {
       const routes = service.getAllRoutes();
       expect(routes).toHaveLength(6);
+    });
+  });
+
+  describe('step-free disruption filtering', () => {
+    it('should filter out line disruptions with step-free in description', async () => {
+      const mockProcessedLineDisruptions: ProcessedDisruption[] = [
+        {
+          id: 'step-free-1',
+          type: 'Severe Delays',
+          description: 'Wembley Park: No Step Free Access - faulty lift',
+          mode: 'tube',
+          startDate: new Date(),
+          endDate: new Date(),
+          isActive: true,
+          source: 'line',
+          lineId: 'metropolitan',
+          affectedStopPoints: ['940GZZLUWYP'],
+        },
+        {
+          id: 'real-1',
+          type: 'Severe Delays',
+          description: 'Metropolitan Line: Delays due to signal failure',
+          mode: 'tube',
+          startDate: new Date(),
+          endDate: new Date(),
+          isActive: true,
+          source: 'line',
+          lineId: 'metropolitan',
+          affectedStopPoints: ['940GZZLUWYP'],
+        },
+      ];
+      const mockProcessedStopDisruptions: ProcessedDisruption[] = [];
+
+      mockTflClient.getLineStatus.mockResolvedValue([]);
+      mockTflClient.getStopPointDisruptions.mockResolvedValue([]);
+      mockTflClient.processLineStatusResponses.mockReturnValue(mockProcessedLineDisruptions);
+      mockTflClient.processStopPointDisruptions.mockReturnValue(mockProcessedStopDisruptions);
+      mockTflClient.isBus206Curtailed.mockResolvedValue(false);
+
+      const result = await service.getRouteDisruptions('route1-outbound');
+
+      expect(result!.lineDisruptions).toHaveLength(1);
+      expect(result!.lineDisruptions[0].id).toBe('real-1');
+    });
+
+    it('should filter out stop point disruptions with step-free in description', async () => {
+      const mockProcessedLineDisruptions: ProcessedDisruption[] = [];
+      const mockProcessedStopDisruptions: ProcessedDisruption[] = [
+        {
+          id: 'step-free-sp',
+          type: 'Closure',
+          description: 'Willesden Junction: No Step Free Access - faulty lift',
+          mode: 'tube',
+          startDate: new Date(),
+          endDate: new Date(),
+          isActive: true,
+          source: 'stopPoint',
+          stopPointId: '940GZZLUWJN',
+        },
+        {
+          id: 'real-sp',
+          type: 'Closure',
+          description: 'Willesden Junction: Platform access closed',
+          mode: 'tube',
+          startDate: new Date(),
+          endDate: new Date(),
+          isActive: true,
+          source: 'stopPoint',
+          stopPointId: '940GZZLUWJN',
+        },
+      ];
+
+      mockTflClient.getLineStatus.mockResolvedValue([]);
+      mockTflClient.getStopPointDisruptions.mockResolvedValue([]);
+      mockTflClient.processLineStatusResponses.mockReturnValue(mockProcessedLineDisruptions);
+      mockTflClient.processStopPointDisruptions.mockReturnValue(mockProcessedStopDisruptions);
+      mockTflClient.isBus206Curtailed.mockResolvedValue(false);
+
+      const result = await service.getRouteDisruptions('route2-outbound');
+
+      expect(result!.stopDisruptions).toHaveLength(1);
+      expect(result!.stopDisruptions[0].id).toBe('real-sp');
+    });
+
+    it('should filter step-free descriptions with hyphenated step-free', async () => {
+      const mockProcessedLineDisruptions: ProcessedDisruption[] = [
+        {
+          id: 'step-free-hyphen',
+          type: 'Severe Delays',
+          description: 'King\'s Cross: Step-free access not available due to lift failure',
+          mode: 'tube',
+          startDate: new Date(),
+          endDate: new Date(),
+          isActive: true,
+          source: 'line',
+          lineId: 'metropolitan',
+          affectedStopPoints: ['940GZZLUKSX'],
+        },
+      ];
+      const mockProcessedStopDisruptions: ProcessedDisruption[] = [];
+
+      mockTflClient.getLineStatus.mockResolvedValue([]);
+      mockTflClient.getStopPointDisruptions.mockResolvedValue([]);
+      mockTflClient.processLineStatusResponses.mockReturnValue(mockProcessedLineDisruptions);
+      mockTflClient.processStopPointDisruptions.mockReturnValue(mockProcessedStopDisruptions);
+      mockTflClient.isBus206Curtailed.mockResolvedValue(false);
+
+      const result = await service.getRouteDisruptions('route1-outbound');
+
+      expect(result!.lineDisruptions).toHaveLength(0);
+    });
+
+    it('should filter out line disruptions with category "Information"', async () => {
+      const mockProcessedLineDisruptions: ProcessedDisruption[] = [
+        {
+          id: 'info-1',
+          type: 'Severe Delays',
+          description: 'Wembley Park: Lift out of service',
+          mode: 'tube',
+          startDate: new Date(),
+          endDate: new Date(),
+          isActive: true,
+          source: 'line',
+          lineId: 'metropolitan',
+          affectedStopPoints: ['940GZZLUWYP'],
+          category: 'Information',
+        },
+        {
+          id: 'real-2',
+          type: 'Severe Delays',
+          description: 'Metropolitan Line: Delays due to signal failure',
+          mode: 'tube',
+          startDate: new Date(),
+          endDate: new Date(),
+          isActive: true,
+          source: 'line',
+          lineId: 'metropolitan',
+          affectedStopPoints: ['940GZZLUWYP'],
+          category: 'RealTime',
+        },
+      ];
+      const mockProcessedStopDisruptions: ProcessedDisruption[] = [];
+
+      mockTflClient.getLineStatus.mockResolvedValue([]);
+      mockTflClient.getStopPointDisruptions.mockResolvedValue([]);
+      mockTflClient.processLineStatusResponses.mockReturnValue(mockProcessedLineDisruptions);
+      mockTflClient.processStopPointDisruptions.mockReturnValue(mockProcessedStopDisruptions);
+      mockTflClient.isBus206Curtailed.mockResolvedValue(false);
+
+      const result = await service.getRouteDisruptions('route1-outbound');
+
+      expect(result!.lineDisruptions).toHaveLength(1);
+      expect(result!.lineDisruptions[0].id).toBe('real-2');
     });
   });
 });

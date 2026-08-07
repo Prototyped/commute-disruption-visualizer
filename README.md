@@ -12,6 +12,7 @@ The app monitors three commute routes between Kingfisher Way/Normansmead and Liv
 - **Route-based Organization**: Groups disruptions by 6 predefined routes (3 outbound + 3 inbound)
 - **Bus 206 Curtailment Detection**: Automatically detects when bus 206 inbound is curtailed (does not reach The Paddocks) using the TfL Arrivals API
 - **Intelligent Grouping**: Deduplicates TfL disruptions with identical descriptions, merging affected lines and date ranges
+- **Step-free Filtering**: Excludes accessibility notices (lift/escalator outages) from disruption results, showing only service disruptions relevant to able-bodied passengers
 - **Multiple Data Sources**: Combines line status (primary) and stop point disruption data
 - **Support for Multiple Journeys**: Both outbound and inbound routes across bus, tube, and rail modes
 - **Automatic Updates**: Refreshes disruption data every 5 minutes
@@ -93,7 +94,7 @@ src/
 2. **`TflApiClient.getLineStatus()`** and **`getStopPointDisruptions()`** fetch in parallel, batching at 10 IDs per request.
 3. **`processLineStatusResponses()`** extracts disruptions from `lineStatuses[].disruption`, pulling affected stop points from `affectedRoutes[].routeSectionNaptanEntrySequence[].stopPoint` (primary) and `affectedStops[]` (fallback).
 4. **`processStopPointDisruptions()`** converts TfL stop disruptions to `ProcessedDisruption`, preserving `atcoCode` (as `stopPointId`) and `stationAtcoCode`.
-5. **`RouteDisruptionService.mapDisruptionsToRoute()`** filters disruptions to those relevant to a specific route by matching `lineId`, `affectedStopPoints`, `affectedRoutes` stop identifiers, and `stopPointId`/`stationAtcoCode` against the route's stop point IDs.
+5. **`RouteDisruptionService.mapDisruptionsToRoute()`** filters disruptions to those relevant to a specific route by matching `lineId`, `affectedStopPoints`, `affectedRoutes` stop identifiers, and `stopPointId`/`stationAtcoCode` against the route's stop point IDs. Step-free access notices (lift/escalator outages) are filtered out before route matching.
 6. **`TflApiClient.isBus206Curtailed()`** checks arrivals at Brent Park Tesco for line 206 destination names.
 7. **`RouteCard`** renders each route as a collapsible card. `GroupedDisruptionCard` shows deduplicated TfL disruptions. Bus 206 curtailment disruptions render separately under "206 Curtailment Notice" without timestamps.
 8. **Loading overlay**: `.loading-overlay` + `.loading-modal` fullscreen modal shows during all loading states. Refresh button is disabled during loading.

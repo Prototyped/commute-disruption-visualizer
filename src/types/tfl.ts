@@ -254,6 +254,7 @@ export interface ProcessedDisruption {
   lineId?: string; // For line disruptions
   affectedStopPoints?: string[]; // For line status disruptions - list of affected stop point IDs
   affectedRoutes?: TflAffectedRoute[]; // Original affected routes data from TfL API
+  category?: string; // TfL disruption category (e.g., "Information", "RealTime")
 }
 
 // Grouped disruption data for display - combines disruptions with identical descriptions

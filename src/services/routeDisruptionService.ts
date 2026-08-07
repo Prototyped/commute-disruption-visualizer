@@ -3,6 +3,26 @@ import { RouteDefinition, RouteDisruptions, ProcessedDisruption, GroupedDisrupti
 import { ALL_ROUTES, ALL_LINE_IDS, getAllStopPointIds } from '../data/routes';
 
 /**
+ * Check if a disruption indicates a step-free access issue.
+ * These are accessibility notices, not service disruptions for able-bodied passengers.
+ * Checks both the TfL category field and description text.
+ */
+function isStepFreeDisruption(disruption: ProcessedDisruption): boolean {
+  const category = (disruption.category || '').toLowerCase();
+  const description = (disruption.description || '').toLowerCase();
+  
+  if (category === 'information') {
+    return true;
+  }
+  
+  if (description.includes('step free') || description.includes('step-free')) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Service for managing route-based disruption data
  */
 export class RouteDisruptionService {
@@ -84,31 +104,35 @@ export class RouteDisruptionService {
     const routeStopIds = this.getRouteStopPointIds(route);
 
     // Filter disruptions relevant to this route
-    const relevantLineDisruptions = lineDisruptions.filter(disruption => {
-      // First check if the lineId matches any route segment
-      if (disruption.lineId && routeLineIds.some(routeLineId => routeLineId.includes(disruption.lineId!))) {
-        // If we have specific affected stop points, use those (most granular)
-        if (disruption.affectedStopPoints && disruption.affectedStopPoints.length > 0) {
-          // Only include if at least one affected stop point is in our route
-          return disruption.affectedStopPoints.some(stopId => routeStopIds.includes(stopId));
+    const relevantLineDisruptions = lineDisruptions
+      .filter(disruption => !isStepFreeDisruption(disruption))
+      .filter(disruption => {
+        // First check if the lineId matches any route segment
+        if (disruption.lineId && routeLineIds.some(routeLineId => routeLineId.includes(disruption.lineId!))) {
+          // If we have specific affected stop points, use those (most granular)
+          if (disruption.affectedStopPoints && disruption.affectedStopPoints.length > 0) {
+            // Only include if at least one affected stop point is in our route
+            return disruption.affectedStopPoints.some(stopId => routeStopIds.includes(stopId));
+          }
+          
+          // Fallback: Check if any affected routes match our route definition
+          if (disruption.affectedRoutes && disruption.affectedRoutes.length > 0) {
+            return this.isRouteAffectedByDisruption(route, disruption);
+          }
+          
+          // If no affected routes or stop points specified, include the disruption (affects entire line)
+          return true;
         }
-        
-        // Fallback: Check if any affected routes match our route definition
-        if (disruption.affectedRoutes && disruption.affectedRoutes.length > 0) {
-          return this.isRouteAffectedByDisruption(route, disruption);
-        }
-        
-        // If no affected routes or stop points specified, include the disruption (affects entire line)
-        return true;
-      }
-      return false;
-    });
+        return false;
+      });
 
-    const relevantStopDisruptions = stopDisruptions.filter(disruption =>
-      // For stop point disruptions, check if either the stopPointId (atcoCode) or stationAtcoCode matches any route stop
-      (disruption.stopPointId && routeStopIds.includes(disruption.stopPointId)) ||
-      (disruption.stationAtcoCode && routeStopIds.includes(disruption.stationAtcoCode))
-    );
+    const relevantStopDisruptions = stopDisruptions
+      .filter(disruption => !isStepFreeDisruption(disruption))
+      .filter(disruption =>
+        // For stop point disruptions, check if either the stopPointId (atcoCode) or stationAtcoCode matches any route stop
+        (disruption.stopPointId && routeStopIds.includes(disruption.stopPointId)) ||
+        (disruption.stationAtcoCode && routeStopIds.includes(disruption.stationAtcoCode))
+      );
 
     // Check for bus 206 curtailment disruptions
     const wembleyEventDisruptions = await this.getBus206CurtailmentDisruptions(route);
