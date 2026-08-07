@@ -1,220 +1,152 @@
-# TfL Disruption Visualizer
+# Commute Disruption Visualizer
 
-A React-based web application that monitors and visualizes Transport for London (TfL) service disruptions for specific commuter routes between Kingfisher Way/Normansmead and Liverpool Street Station.
+A React + TypeScript web app that visualizes Transport for London (TfL) service disruptions for specific multi-modal commute routes. Queries TfL public APIs for line status and stop point disruptions, then maps results to user-defined routes.
 
 ## Overview
 
-This application tracks disruptions on three specific commuting routes by monitoring TfL's public APIs for both line and stop point disruptions. It organizes and displays this information in a route-centric view, making it easy to see the current status of each journey segment.
+The app monitors three commute routes between Kingfisher Way/Normansmead and Liverpool Street Station, grouping disruptions by route and displaying them in collapsible cards. It fetches data from TfL APIs on load and refreshes every 5 minutes.
 
 ## Features
 
-- **Real-time Disruption Monitoring**: Fetches live data from TfL APIs
-- **Route-based Organization**: Groups disruptions by specific transport routes
-- **Wembley Event Day Integration**: Automatic detection and notification of service changes during Wembley Stadium events
-- **Intelligent Grouping**: Consolidates duplicate disruptions for cleaner display
-- **Multiple Data Sources**: Combines line status, stop-point disruption data, and external event calendars
-- **Support for Multiple Journeys**: Both outbound and inbound routes
-- **Integration with Multiple Services**: Buses, underground, Elizabeth line, and event APIs
+- **Real-time Disruption Monitoring**: Fetches live data from TfL Line Status and Stop Point Disruption APIs
+- **Route-based Organization**: Groups disruptions by 6 predefined routes (3 outbound + 3 inbound)
+- **Bus 206 Curtailment Detection**: Automatically detects when bus 206 inbound is curtailed (does not reach The Paddocks) using the TfL Arrivals API
+- **Intelligent Grouping**: Deduplicates TfL disruptions with identical descriptions, merging affected lines and date ranges
+- **Multiple Data Sources**: Combines line status (primary) and stop point disruption data
+- **Support for Multiple Journeys**: Both outbound and inbound routes across bus, tube, and rail modes
 - **Automatic Updates**: Refreshes disruption data every 5 minutes
-- **Mobile-friendly Design**: Responsive interface for all devices
+- **Responsive Layout**: Outbound and inbound routes displayed in separate sections
 
-## 🛣️ Monitored Routes
+## Routes
 
-### Route 1: Kingfisher Way ↔ Liverpool Street (via Wembley Park)
-- **Outbound**: Bus 206 → Metropolitan Line
-- **Inbound**: Metropolitan Line → Bus 206
+| Route ID | Description | Segments |
+|---|---|---|
+| `route1-outbound` | Kingfisher Way → Liverpool Street via Wembley Park | Bus 206 → Metropolitan Line |
+| `route1-inbound` | Liverpool Street → Kingfisher Way via Wembley Park | Metropolitan Line → Bus 206 |
+| `route2-outbound` | Kingfisher Way → Liverpool Street via Harlesden | Bus 206/224 → Bakerloo Line → H&C/Circle Line |
+| `route2-inbound` | Liverpool Street → Kingfisher Way via Harlesden | H&C/Circle Line → Bakerloo Line → Bus 206/224 |
+| `route3-outbound` | Normansmead → Liverpool Street via Ealing Broadway | Bus 112 → Elizabeth Line |
+| `route3-inbound` | Liverpool Street → Wrights Place via Ealing Broadway | Elizabeth Line → Bus 112 |
 
-### Route 2: Kingfisher Way ↔ Liverpool Street (via Harlesden)
-- **Outbound**: Bus 206/224 → Bakerloo Line → Hammersmith & City/Circle Line
-- **Inbound**: Hammersmith & City/Circle Line → Bakerloo Line → Bus 206/224
+**Lines monitored**: `metropolitan`, `hammersmith-city`, `circle`, `bakerloo`, `elizabeth`, `112`, `206`, `224`
 
-### Route 3: Normansmead ↔ Liverpool Street (via Ealing Broadway)
-- **Outbound**: Bus 112 → Elizabeth Line
-- **Inbound**: Elizabeth Line → Bus 112
+**Bus 206 curtailment**: For `route1-inbound` only. The app queries the TfL Arrivals API at Brent Park Tesco (stop `490004297W`). If any 206 arrival has `destinationName` containing "Paddocks", the route is normal. If arrivals exist but none contain "Paddocks", the route is curtailed. If no arrivals exist (off-hours), the route is assumed not curtailed (fail open).
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Node.js (v16 or higher)
+
+- Node.js v16+
 - npm
 
 ### Installation
 
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd commute-disruption-visualizer
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
 
+The webpack dev server runs on port 3000, serving from `public/`.
+
 ### Available Scripts
 
-```bash
-# Development
-npm run dev          # Webpack dev server
-npm run start        # Alias for dev server
+| Command | Action |
+|---------|--------|
+| `npm run dev` / `npm run start` | Webpack dev server (port 3000) |
+| `npm run build` | Clean + production webpack build |
+| `npm run clean` | Remove `dist/` directory |
+| `npm run test` | Jest test runner |
+| `npm run test:watch` | Jest in watch mode |
+| `npm run lint` | ESLint (`src/**/*.ts` + `src/**/*.tsx`) |
+| `npm run lint:fix` | ESLint with `--fix` |
 
-# Production
-npm run build        # Production webpack build
-npm run clean        # Clean build artifacts
-
-# Testing
-npm run test         # Jest test runner
-npm run test:watch   # Jest in watch mode
-
-# Code Quality
-npm run lint         # ESLint (`.ts` + `.tsx`)
-npm run lint:fix     # ESLint with --fix
-```
-
-## Technical Implementation
-
-### Project Structure
+## Project Structure
 
 ```
 src/
-├── __tests__/              # Shared test utilities
-│   └── styleMock.js            # CSS module mock for Jest
-├── components/             # React components
-│   ├── __tests__/
-│   │   └── RouteCard.test.tsx      # Component tests
-│   ├── GroupedDisruptionCard.tsx   # Grouped TfL disruptions
-│   ├── RouteCard.tsx               # Route-level disruption display
-│   ├── RouteCard.css
-│   ├── RouteSegmentDisplay.tsx     # Visualize route segments
-│   └── RouteSegmentDisplay.css
-├── services/
-│   ├── __tests__/              # Service-layer tests
-│   ├── routeDisruptionService.ts   # Map disruptions to routes
-│   ├── tflApi.ts               # TfL API client
-│   └── wembleyEventService.ts  # Wembley event detection
+├── App.tsx                          # Main app: fetches, renders RouteCards, handles loading/error states
+├── index.ts                         # Entry point
 ├── types/
-│   └── tfl.ts              # TfL API type definitions
+│   └── tfl.ts                       # All TypeScript interfaces (TfL API types + internal data models)
 ├── data/
-│   └── routes.ts           # Route definitions
-└── utils/                  # Shared utilities
+│   └── routes.ts                    # Route definitions (6 routes), line IDs, stop IDs
+├── services/
+│   ├── tflApi.ts                    # TfL API client: Line Status, Stop Point Disruptions, Arrivals, batching, processing
+│   ├── routeDisruptionService.ts    # Maps disruptions to routes, groups by description, bus 206 curtailment detection
+│   └── __tests__/                   # Service tests
+├── components/
+│   ├── RouteCard.tsx                # Collapsible route card showing grouped + curtailment disruptions
+│   ├── GroupedDisruptionCard.tsx    # Display for grouped TfL disruptions
+│   ├── RouteSegmentDisplay.tsx      # Visual route segment breakdown
+│   └── __tests__/RouteCard.test.tsx # Component tests (jsdom)
+├── __tests__/styleMock.js           # CSS mock for Jest
+└── *.css                            # Plain CSS files (App.css, index.css, components/*.css)
 ```
 
-### Key Components
+## Architecture
 
-The application is built with five main layers:
+### Data Flow
 
-1. **TfL API Integration** (`tflApi.ts`)
-   - Batched requests (max 10 IDs) to Line Status and Stop Point Disruption endpoints
-   - Extracts structured data from `lineStatuses[].disruption.affectedRoutes[]`
+1. **`App.tsx`** mounts and calls `routeService.getAllRouteDisruptions()` on load, then every 5 minutes via `setInterval`.
+2. **`TflApiClient.getLineStatus()`** and **`getStopPointDisruptions()`** fetch in parallel, batching at 10 IDs per request.
+3. **`processLineStatusResponses()`** extracts disruptions from `lineStatuses[].disruption`, pulling affected stop points from `affectedRoutes[].routeSectionNaptanEntrySequence[].stopPoint` (primary) and `affectedStops[]` (fallback).
+4. **`processStopPointDisruptions()`** converts TfL stop disruptions to `ProcessedDisruption`, preserving `atcoCode` (as `stopPointId`) and `stationAtcoCode`.
+5. **`RouteDisruptionService.mapDisruptionsToRoute()`** filters disruptions to those relevant to a specific route by matching `lineId`, `affectedStopPoints`, `affectedRoutes` stop identifiers, and `stopPointId`/`stationAtcoCode` against the route's stop point IDs.
+6. **`TflApiClient.isBus206Curtailed()`** checks arrivals at Brent Park Tesco for line 206 destination names.
+7. **`RouteCard`** renders each route as a collapsible card. `GroupedDisruptionCard` shows deduplicated TfL disruptions. Bus 206 curtailment disruptions render separately under "206 Curtailment Notice" without timestamps.
+8. **Loading overlay**: `.loading-overlay` + `.loading-modal` fullscreen modal shows during all loading states. Refresh button is disabled during loading.
 
-2. **Wembley Event Service** (`wembleyEventService.ts`)
-   - Brent Council API via multipart/form-data POST (proxied through nginx)
-   - Event day detection and upcoming event queries
+### Route Matching Logic
 
-3. **Route Disruption Service** (`routeDisruptionService.ts`)
-   - Maps disruptions to routes by matching stop identifiers (`naptanId`, `id`, `stationNaptan`, `atcoCode`, `stationAtcoCode`)
-   - Groups duplicate TfL disruptions; keeps Wembley event disruptions separate
-   - Generates synthetic disruptions for Wembley event days (bus 206 curtailment)
+- **Line disruptions**: Check `disruption.lineId` matches a route segment's `lineId`. If `affectedStopPoints` exists, match those against route stop IDs. If absent, check `affectedRoutes` entries by iterating `routeSectionNaptanEntrySequence` and matching `naptanId`/`id`/`stationNaptan`. If no specific stops listed, include the disruption (affects entire line).
+- **Stop point disruptions**: Match `stopPointId` (from `atcoCode`) or `stationAtcoCode` against route stop IDs.
 
-4. **React Components**
-   - `RouteCard` — collapses/expands per route; renders grouped TfL and separate Wembley event disruptions
-   - `GroupedDisruptionCard` — deduplicated disruption display
-   - `RouteSegmentDisplay` — visual route segment breakdown
+### Grouping
 
-5. **Modal Loading Overlay**
-   - Fixed fullscreen backdrop with centered spinner card during all loading states (initial load and refreshes)
-   - Refresh button does not spin; it is simply disabled during loading
+Disruptions with identical `description` text are grouped into `GroupedDisruption` objects combining affected lines, stop points, and date ranges (min start, max end). Only TfL-sourced disruptions are grouped; bus 206 curtailment disruptions stay separate.
 
 ## API Integration
 
 ### TfL APIs
-The application uses two main TfL API endpoints:
-- **Line Status** (with detail): `https://api.tfl.gov.uk/Line/{line_ids}/Status?detail=true` — the primary source of disruption data, including affected stop points
-- **Stop Point Disruptions**: `https://api.tfl.gov.uk/StopPoint/{stop_point_ids}/Disruption`
 
-### Wembley Event API
-- **Brent Council Events**: `https://gurdasani.com/brent-api/search/list`
-- **Method**: POST with multipart/form-data
-- **Purpose**: Detect Wembley Stadium event days for service impact predictions
+| Endpoint | Purpose | Batch Limit |
+|---|---|---|
+| `GET /Line/{ids}/Status?detail=true` | Primary disruption source with affected stop points | 10 line IDs |
+| `GET /StopPoint/{ids}/Disruption` | Secondary stop point disruptions | 10 stop point IDs |
+| `GET /StopPoint/{id}/Arrivals?lines={ids}` | Bus 206 curtailment detection (destination names) | N/A |
+
+The Line Status API is used instead of the Line Disruption API because the latter never populates `affectedRoutes`/`affectedStops`. The `detail=true` query parameter is mandatory — without it, structured disruption data is absent.
 
 ### Monitored Services
 
-#### Rail Lines
-- Metropolitan Line (`metropolitan`)
-- Hammersmith and City Line (`hammersmith-city`)
-- Circle Line (`circle`)
-- Bakerloo Line (`bakerloo`)
-- Elizabeth Line (`elizabeth`)
+**Rail Lines**: Metropolitan (`metropolitan`), Hammersmith & City (`hammersmith-city`), Circle (`circle`), Bakerloo (`bakerloo`), Elizabeth (`elizabeth`)
 
-#### Bus Routes
-- Route 112 (`112`)
-- Route 206 (`206`)
-- Route 224 (`224`)
+**Bus Routes**: 112 (`112`), 206 (`206`), 224 (`224`)
 
 ## Development
 
-- TypeScript throughout
-- Jest with `ts-jest` for testing; component tests use `@jest-environment jsdom` and `@testing-library/react`
-- CSS moduleNameMapper mocks `.css` imports for Jest (`src/__tests__/styleMock.js`)
-- ESLint for code quality
+- TypeScript strict mode, ES2022 target, `react-jsx` JSX transform
+- Jest 29 + `ts-jest` + `@testing-library/react` in `jsdom` environment for components, `node` environment for services
+- CSS moduleNameMapper mocks `.css` imports via `src/__tests__/styleMock.js`
+- ESLint 8 with `@typescript-eslint` for code quality
 - Plain CSS files (not CSS Modules)
+- `@/*` path alias maps to `src/*`
 
-## Contributing
+## Testing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
+- **Service tests**: `src/services/__tests__/tflApi.test.ts`, `routeDisruptionService.test.ts`, `routeDisruptionService.wembley.test.ts`
+- **Component tests**: `src/components/__tests__/RouteCard.test.tsx`
 
-## Wembley Event Day Integration
+## Configuration
 
-The application includes specialized functionality to automatically detect Wembley Stadium event days and generate appropriate service disruptions.
-
-### Key Features
-
-- **Automatic Event Detection**: Integrates with Brent Council API to fetch upcoming Wembley Stadium events
-- **Route-Specific Impact**: Targets only the inbound route from Liverpool Street to Kingfisher Way via Wembley Park Station
-- **Time-Based Activation**: Disruptions are active from 13:00-23:00 on event days
-- **Real-Time Status**: Shows active/inactive status based on current time
-- **Service Details**: Provides specific information about Bus 206 service changes
-
-### How It Works
-
-1. **Event Calendar Sync**: Daily checks against Brent Council's event calendar
-2. **Route Targeting**: Only affects `route1-inbound` (Liverpool Street → Kingfisher Way via Wembley Park)
-3. **Service Impact**: On event days, Bus 206 cannot enter Wembley area
-4. **Alternative Stops**: Northernmost stop becomes Brent Park Tesco
-5. **Affected Stations**: Wembley Park Station through Kingfisher Way stops not served
-
-### Technical Implementation
-
-- **WembleyEventService**: Handles API integration with Brent Council event system
-- **Multipart Form Data**: Precise HTTP request formatting for API compatibility
-- **Data Separation**: Wembley disruptions kept separate from TfL-sourced data
-- **Error Handling**: Graceful degradation when event API is unavailable
-- **Comprehensive Testing**: Full test coverage including API format validation
-
-### Example Output
-
-On a Wembley event day, users see:
-
-```
-🚌 Wembley Event Day Service Change
-Bus 206 service disrupted due to Wembley Stadium event: [Event Name]
-Bus 206 does not enter Wembley area - northernmost stop is Brent Park Tesco.
-Wembley Park Station to Kingfisher Way stops not served.
-Active: 13:00 - 23:00
-```
-
-### Data Source Separation
-
-The application maintains clear separation between different disruption sources:
-- **TfL Disruptions**: Official transport authority data (grouped together)
-- **Wembley Event Disruptions**: Event-based service predictions (displayed separately)
-- **Benefits**: Ensures data integrity and source transparency for users
+| File | Purpose |
+|---|---|
+| `webpack.config.js` | Entry `src/index.ts`, output `dist/bundle.js`, `HtmlWebpackPlugin` from `public/index.html` |
+| `tsconfig.json` | ES2022 target, strict mode, `@/*` path alias, excludes test files |
+| `jest.config.js` | `ts-jest` preset, `node` environment, CSS mock, `@/*` path alias |
+| `.eslintrc.json` | ESLint configuration |
 
 ## License
 
