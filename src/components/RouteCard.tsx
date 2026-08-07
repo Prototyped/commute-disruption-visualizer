@@ -19,10 +19,6 @@ const RouteCard: React.FC<RouteCardProps> = ({
 
   const { route, groupedDisruptions, wembleyEventDisruptions } = routeDisruptions;
 
-  const formatTime = (date: Date): string => {
-    return date.toLocaleString();
-  };
-
   // Use grouped disruptions as the primary display method
   const activeGroupedDisruptions = groupedDisruptions.filter(d => d.isActive);
   const inactiveGroupedDisruptions = groupedDisruptions.filter(d => !d.isActive);
@@ -102,7 +98,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
             
             {wembleyEventDisruptions.length > 0 && (
               <div className="wembley-disruptions-section">
-                <h4>Wembley Event Day</h4>
+                <h4>206 Curtailment Notice</h4>
                 {wembleyEventDisruptions.map(disruption => (
                   <div key={disruption.id} className="disruption-card">
                     <span className="disruption-type">{disruption.type}</span>
@@ -111,10 +107,6 @@ const RouteCard: React.FC<RouteCardProps> = ({
                       <p>Mode: {disruption.mode}</p>
                       <p>Active: {disruption.isActive ? 'Yes' : 'No'}</p>
                       {disruption.lineId && <p>Affected Line: {disruption.lineId}</p>}
-                    </div>
-                    <div className="disruption-timestamps">
-                      <p>Start: {formatTime(disruption.startDate)}</p>
-                      <p>End: {formatTime(disruption.endDate)}</p>
                     </div>
                   </div>
                 ))}

@@ -1,4 +1,4 @@
-import { TflStopPointDisruption, TflLineStatusResponse, TflLineStatus, TflDisruptionDetail, ProcessedDisruption } from '../types/tfl';
+import { TflStopPointDisruption, TflLineStatusResponse, TflLineStatus, TflDisruptionDetail, ProcessedDisruption, TflPrediction } from '../types/tfl';
 
 /**
  * TfL API client for fetching disruption data
@@ -282,5 +282,57 @@ export class TflApiClient {
     const endDate = new Date(disruption.toDate);
     
     return now >= startDate && now <= endDate;
+  }
+
+  /**
+   * Fetch stop point arrivals for given stop point IDs and optional line filter
+   */
+  async getStopPointArrivals(stopPointId: string, lineIds?: string[]): Promise<TflPrediction[]> {
+    const params = new URLSearchParams({ lines: lineIds?.join(',') || '' });
+    const url = `${this.baseUrl}/StopPoint/${stopPointId}/Arrivals?${params.toString()}`;
+    
+    try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.warn(`TfL API warning for arrivals at ${stopPointId}: ${response.status} ${response.statusText}`);
+        return [];
+      }
+      
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching stop point arrivals:', error);
+      return [];
+    }
+  }
+
+  /**
+    * Determine if bus route 206 is curtailed (does not reach its normal destination).
+    * Uses the Arrivals API at Brent Park Tesco to check if any 206 buses
+    * are destined for The Paddocks. If no arrivals exist, assume not curtailed.
+    */
+   async isBus206Curtailed(): Promise<boolean> {
+    const BRENT_PARK_TESCO_STOP = '490004297W';
+    const PADDocks_SUBSTRING = 'Paddocks';
+    
+    const arrivals = await this.getStopPointArrivals(BRENT_PARK_TESCO_STOP, ['206']);
+    
+    if (arrivals.length === 0) {
+      // No arrivals detected — assume route is operating normally
+      return false;
+    }
+    
+    // Check if any 206 bus is heading to The Paddocks (substring match)
+    const hasPaddocksDestination = arrivals.some(
+      (prediction) => 
+        prediction.lineId === '206' && 
+        prediction.destinationName.toLowerCase().includes(PADDocks_SUBSTRING.toLowerCase())
+    );
+    
+    return !hasPaddocksDestination;
   }
 }

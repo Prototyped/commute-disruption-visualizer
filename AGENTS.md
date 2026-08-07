@@ -25,12 +25,11 @@ src/
 ├── data/
 │   └── routes.ts                    # Route definitions (6 routes: 3 outbound + 3 inbound), line IDs, stop IDs
 ├── services/
-│   ├── tflApi.ts                    # TfL API client: Line Status + Stop Point Disruptions, batching, processing
-│   ├── routeDisruptionService.ts    # Maps disruptions to routes, groups by description, Wembley event logic
-│   ├── wembleyEventService.ts       # Brent Council API for Wembley Stadium event detection
+│   ├── tflApi.ts                    # TfL API client: Line Status, Stop Point Disruptions, Arrivals, batching, processing
+│   ├── routeDisruptionService.ts    # Maps disruptions to routes, groups by description, bus 206 curtailment detection
 │   └── __tests__/                   # Service tests
 ├── components/
-│   ├── RouteCard.tsx                # Collapsible route card showing grouped + Wembley disruptions
+│   ├── RouteCard.tsx                # Collapsible route card showing grouped + curtailment disruptions
 │   ├── GroupedDisruptionCard.tsx    # Display for grouped TfL disruptions
 │   ├── RouteSegmentDisplay.tsx      # Visual route segment breakdown
 │   └── __tests__/RouteCard.test.tsx # Component tests (jsdom)
@@ -113,19 +112,10 @@ TflStopPointDisruption:
   appearance: string         // e.g. "Information"
 ```
 
-### Wembley Events API
-- **Endpoint**: `POST https://gurdasani.com/brent-api/search/list`
-- **Content-Type**: `multipart/form-data; boundary=bucees`
-- **Purpose**: Detect Wembley Stadium event days to show bus 206 curtailment.
-- **Body format** — every line must end with `\r\n`:
-```
---bucees\r\n
-Content-Disposition: form-data; name="searchQuery"\r\n
-\r\n
-{"search":"","facets":["brent_item_venue","brent_item_area","brent_item_date"],"filter":"(brent_item_venue/any(t: t eq 'Wembley Stadium')) and (template_1 eq '7bcaf87fb19f48e28b09754cfa20468d' or template_1 eq '672bebc02617450aa2e13d4ea5042a4d') and brent_item_has_layout and path_1/any(t:t eq '110d559fdea542ea9c1c8a5df7e70ef9')","orderBy":["brent_item_date"],"searchType":"Events","size":25,"orderDirection":"ASC"}\r\n
---bucees--\r\n
-```
-- Proxied through an nginx instance (Brent Council API does not support CORS).
+### Stop Point Arrivals API
+- **Endpoint**: `GET https://api.tfl.gov.uk/StopPoint/{id}/Arrivals?lines={ids}`
+- **Purpose**: Fetch real-time arrival predictions for a stop, optionally filtered by line. Used to detect bus 206 curtailment by checking destination names.
+- Returns `TflPrediction[]` with `destinationName` (e.g. "Wembley Park, The Paddocks"), `lineId`, `lineName`, `expectedArrival`.
 
 ## Routes
 
@@ -142,7 +132,7 @@ Content-Disposition: form-data; name="searchQuery"\r\n
 
 **Lines monitored**: `metropolitan`, `hammersmith-city`, `circle`, `bakerloo`, `elizabeth`, `112`, `206`, `224`
 
-**Wembley event**: On event days (13:00–23:00), bus 206 inbound is curtailed. Northernmost stop becomes Brent Park Tesco. Only affects `route1-inbound`.
+**Bus 206 curtailment**: When bus 206 inbound does not reach The Paddocks, the northernmost stop becomes Brent Park Tesco (stop `490004297W`). Only affects `route1-inbound`. Detection uses the Stop Point Arrivals API at Brent Park Tesco — if no 206 arrivals have `destinationName` containing "Paddocks", the route is curtailed. If no arrivals exist (off-hours), the route is assumed not curtailed (fail open).
 
 ## Architecture
 
@@ -153,8 +143,9 @@ Content-Disposition: form-data; name="searchQuery"\r\n
 3. **`processLineStatusResponses()`** extracts disruptions from `lineStatuses[].disruption`, pulling affected stop points from `affectedRoutes[].routeSectionNaptanEntrySequence[].stopPoint` (primary) and `affectedStops[]` (fallback). Collects `naptanId`, `id`, and `stationNaptan` identifiers.
 4. **`processStopPointDisruptions()`** converts TfL stop disruptions to `ProcessedDisruption`, preserving `atcoCode` (as `stopPointId`) and `stationAtcoCode`.
 5. **`RouteDisruptionService.mapDisruptionsToRoute()`** filters disruptions to those relevant to a specific route by checking `lineId`, `affectedStopPoints`, `affectedRoutes` stop identifiers, and `stopPointId`/`stationAtcoCode` against the route's stop point IDs.
-6. **`RouteCard`** renders each route as a collapsible card. `GroupedDisruptionCard` shows deduplicated TfL disruptions. Wembley event disruptions render separately.
-7. **Loading overlay**: `.loading-overlay` + `.loading-modal` fullscreen modal shows during all loading states (initial load and refreshes). Refresh button is disabled during loading but does not spin.
+6. **`TflApiClient.isBus206Curtailed()`** checks arrivals at Brent Park Tesco (stop `490004297W`) for line 206. If any arrival has `destinationName` containing "Paddocks", the route is normal. If arrivals exist but none contain "Paddocks", the route is curtailed. If no arrivals exist, the route is assumed normal.
+7. **`RouteCard`** renders each route as a collapsible card. `GroupedDisruptionCard` shows deduplicated TfL disruptions. Bus 206 curtailment disruptions render separately under "206 Curtailment Notice" without timestamps.
+8. **Loading overlay**: `.loading-overlay` + `.loading-modal` fullscreen modal shows during all loading states (initial load and refreshes). Refresh button is disabled during loading but does not spin.
 
 ### Route matching logic
 
@@ -163,11 +154,11 @@ Content-Disposition: form-data; name="searchQuery"\r\n
 
 ### Grouping
 
-Disruptions with identical `description` text are grouped into `GroupedDisruption` objects combining affected lines, stop points, and date ranges (min start, max end). Only TfL-sourced disruptions are grouped; Wembley event disruptions stay separate.
+Disruptions with identical `description` text are grouped into `GroupedDisruption` objects combining affected lines, stop points, and date ranges (min start, max end). Only TfL-sourced disruptions are grouped; bus 206 curtailment disruptions stay separate.
 
-### Wembley event integration
+### Bus 206 curtailment integration
 
-On event days (13:00–23:00), `getWembleyEventDisruptions()` generates a `ProcessedDisruption` for `route1-inbound` with `lineId: "206"` and the affected inbound stop points. These populate the `wembleyEventDisruptions` field on `RouteDisruptions`, rendered separately from grouped TfL disruptions in `RouteCard`.
+`getBus206CurtailmentDisruptions()` calls `this.tflClient.isBus206Curtailed()` for `route1-inbound`. When curtailed, it generates a `ProcessedDisruption` with `lineId: "206"` and the affected inbound stop points (Wembley Park Station through Hannah Close). These populate the `wembleyEventDisruptions` field on `RouteDisruptions`, rendered separately from grouped TfL disruptions in `RouteCard` under the heading "206 Curtailment Notice" with no time range displayed.
 
 ## Internal Data Model (from `src/types/tfl.ts`)
 
@@ -199,6 +190,13 @@ RouteDisruptions:
   stopDisruptions: ProcessedDisruption[]
   groupedDisruptions: GroupedDisruption[]
   wembleyEventDisruptions: ProcessedDisruption[]
+
+TflPrediction:
+  id, operationType, vehicleId, naptanId, stationName
+  lineId, lineName, platformName, direction, bearing, tripId
+  baseVersion, destinationNaptanId, destinationName
+  timestamp, timeToStation, currentLocation, towards
+  expectedArrival, timeToLive, modeName
 
 RouteDefinition:
   id, name, description
@@ -237,7 +235,7 @@ RouteSegment:
 
 ## Testing
 
-- Service tests: `src/services/__tests__/` — `tflApi.test.ts`, `routeDisruptionService.test.ts`, `routeDisruptionService.wembley.test.ts`, `wembleyEventService.test.ts`
+- Service tests: `src/services/__tests__/` — `tflApi.test.ts`, `routeDisruptionService.test.ts`, `routeDisruptionService.wembley.test.ts`
 - Component tests: `src/components/__tests__/RouteCard.test.tsx` — uses `@testing-library/react` with `jsdom` environment
 - Jest config: `jest.config.js` — `ts-jest` preset, `node` test environment, CSS mocked via `styleMock.js`
 

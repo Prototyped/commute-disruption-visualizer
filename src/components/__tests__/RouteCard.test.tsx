@@ -81,30 +81,30 @@ describe('RouteCard - Wembley event rendering', () => {
       });
       render(<RouteCard routeDisruptions={disruptions} />);
 
-      expect(screen.queryByText('Wembley Event')).not.toBeInTheDocument();
+      expect(screen.queryByText('206 Curtailment')).not.toBeInTheDocument();
     });
 
-    it('does not show "Wembley Event" badge when no Wembley disruptions', () => {
+    it('does not show "206 Curtailment" badge when no curtailment disruptions', () => {
       const disruptions = createBaseRouteDisruptions();
       render(<RouteCard routeDisruptions={disruptions} />);
 
-      expect(screen.queryByText('Wembley Event')).not.toBeInTheDocument();
+      expect(screen.queryByText('206 Curtailment')).not.toBeInTheDocument();
     });
   });
 
   describe('Expanded state', () => {
-    it('shows Wembley event day section with disruption details when expanded', () => {
+    it('shows 206 curtailment notice section with disruption details when expanded', () => {
       const disruptions = createBaseRouteDisruptions({
         wembleyEventDisruptions: [createWembleyDisruption()]
       });
       render(<RouteCard routeDisruptions={disruptions} isExpanded={true} />);
 
-      expect(screen.getByText('Wembley Event Day')).toBeInTheDocument();
+      expect(screen.getByText('206 Curtailment Notice')).toBeInTheDocument();
       expect(screen.getByText('Wembley Event Day Service Change')).toBeInTheDocument();
       expect(screen.getByText(/Bus 206 service disrupted due to Wembley Stadium event/)).toBeInTheDocument();
     });
 
-    it('shows active status as "Yes" for active Wembley disruption', () => {
+    it('shows active status as "Yes" for active curtailment disruption', () => {
       const disruptions = createBaseRouteDisruptions({
         wembleyEventDisruptions: [createWembleyDisruption({ isActive: true })]
       });
@@ -113,7 +113,7 @@ describe('RouteCard - Wembley event rendering', () => {
       expect(screen.getByText('Active: Yes')).toBeInTheDocument();
     });
 
-    it('shows active status as "No" for inactive Wembley disruption', () => {
+    it('shows active status as "No" for inactive curtailment disruption', () => {
       const disruptions = createBaseRouteDisruptions({
         wembleyEventDisruptions: [createWembleyDisruption({ isActive: false })]
       });
@@ -122,7 +122,7 @@ describe('RouteCard - Wembley event rendering', () => {
       expect(screen.getByText('Active: No')).toBeInTheDocument();
     });
 
-    it('shows affected line for Wembley disruption', () => {
+    it('shows affected line for curtailment disruption', () => {
       const disruptions = createBaseRouteDisruptions({
         wembleyEventDisruptions: [createWembleyDisruption()]
       });
@@ -131,7 +131,7 @@ describe('RouteCard - Wembley event rendering', () => {
       expect(screen.getByText('Affected Line: 206')).toBeInTheDocument();
     });
 
-    it('shows mode for Wembley disruption', () => {
+    it('shows mode for curtailment disruption', () => {
       const disruptions = createBaseRouteDisruptions({
         wembleyEventDisruptions: [createWembleyDisruption()]
       });
@@ -140,26 +140,11 @@ describe('RouteCard - Wembley event rendering', () => {
       expect(screen.getByText('Mode: bus')).toBeInTheDocument();
     });
 
-    it('shows timestamps for Wembley disruption', () => {
-      const startDate = new Date('2025-10-19T13:00:00Z');
-      const endDate = new Date('2025-10-19T23:00:00Z');
-      const startStr = startDate.toLocaleString();
-      const endStr = endDate.toLocaleString();
-
-      const disruptions = createBaseRouteDisruptions({
-        wembleyEventDisruptions: [createWembleyDisruption({ startDate, endDate })]
-      });
-      render(<RouteCard routeDisruptions={disruptions} isExpanded={true} />);
-
-      expect(screen.getByText(`Start: ${startStr}`)).toBeInTheDocument();
-      expect(screen.getByText(`End: ${endStr}`)).toBeInTheDocument();
-    });
-
-    it('does not show Wembley section when no Wembley disruptions', () => {
+    it('does not show curtailment section when no curtailment disruptions', () => {
       const disruptions = createBaseRouteDisruptions();
       render(<RouteCard routeDisruptions={disruptions} isExpanded={true} />);
 
-      expect(screen.queryByText('Wembley Event Day')).not.toBeInTheDocument();
+      expect(screen.queryByText('206 Curtailment Notice')).not.toBeInTheDocument();
     });
 
     it('shows "No disruptions reported" when both TfL and Wembley are empty', () => {
@@ -203,7 +188,7 @@ describe('RouteCard - Wembley event rendering', () => {
       });
       render(<RouteCard routeDisruptions={disruptions} isExpanded={true} />);
 
-      expect(screen.getByText('Wembley Event Day')).toBeInTheDocument();
+      expect(screen.getByText('206 Curtailment Notice')).toBeInTheDocument();
       expect(screen.getByText('Test TfL disruption')).toBeInTheDocument();
       expect(screen.getByText(/Bus 206 service disrupted due to Wembley Stadium event/)).toBeInTheDocument();
     });

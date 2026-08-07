@@ -279,3 +279,29 @@ export interface RouteDisruptions {
   groupedDisruptions: GroupedDisruption[]; // New grouped view
   wembleyEventDisruptions: ProcessedDisruption[]; // Wembley event day disruptions
 }
+
+// Response from StopPoint Arrivals API
+export interface TflPrediction {
+  $type?: string;
+  id: string;
+  operationType: number;
+  vehicleId: string;
+  naptanId: string;
+  stationName: string;
+  lineId: string;
+  lineName: string;
+  platformName: string;
+  direction: string;
+  bearing: string;
+  tripId: string;
+  baseVersion: string;
+  destinationNaptanId: string;
+  destinationName: string;
+  timestamp: string;
+  timeToStation: number;
+  currentLocation: string;
+  towards: string;
+  expectedArrival: string;
+  timeToLive: string;
+  modeName: string;
+}

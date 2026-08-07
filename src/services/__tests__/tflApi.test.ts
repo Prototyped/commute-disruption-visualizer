@@ -354,4 +354,181 @@ describe('TflApiClient', () => {
       });
     });
   });
+
+  describe('getStopPointArrivals', () => {
+    it('should fetch arrivals successfully', async () => {
+      const mockArrivals = [
+        {
+          id: '123',
+          operationType: 1,
+          vehicleId: 'LK17DGU',
+          naptanId: '490004297W',
+          stationName: 'Brent Park Tesco',
+          lineId: '206',
+          lineName: '206',
+          platformName: 'T',
+          direction: 'outbound',
+          bearing: '204',
+          tripId: '344940',
+          baseVersion: '20260731',
+          destinationNaptanId: '490010715N',
+          destinationName: 'Wembley Park, The Paddocks',
+          timestamp: '2026-08-07T00:53:44Z',
+          timeToStation: 51,
+          currentLocation: '',
+          towards: 'Wembley Park',
+          expectedArrival: '2026-08-07T00:54:35Z',
+          timeToLive: '2026-08-07T00:55:05Z',
+          modeName: 'bus'
+        }
+      ];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockArrivals,
+      } as Response);
+
+      const result = await client.getStopPointArrivals('490004297W', ['206']);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.test.tfl.gov.uk/StopPoint/490004297W/Arrivals?lines=206'
+      );
+      expect(result).toEqual(mockArrivals);
+    });
+
+    it('should return empty array on API error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      } as Response);
+
+      const result = await client.getStopPointArrivals('490004297W', ['206']);
+      expect(result).toEqual([]);
+    });
+
+    it('should work without line filter', async () => {
+      const mockArrivals = [
+        {
+          id: '123',
+          operationType: 1,
+          vehicleId: 'LK17DGU',
+          naptanId: '490004297W',
+          stationName: 'Brent Park Tesco',
+          lineId: '206',
+          lineName: '206',
+          platformName: 'T',
+          direction: 'outbound',
+          bearing: '204',
+          tripId: '344940',
+          baseVersion: '20260731',
+          destinationNaptanId: '',
+          destinationName: 'Wembley Park, The Paddocks',
+          timestamp: '2026-08-07T00:53:44Z',
+          timeToStation: 51,
+          currentLocation: '',
+          towards: 'Wembley Park',
+          expectedArrival: '2026-08-07T00:54:35Z',
+          timeToLive: '2026-08-07T00:55:05Z',
+          modeName: 'bus'
+        }
+      ];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockArrivals,
+      } as Response);
+
+      const result = await client.getStopPointArrivals('490004297W');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.test.tfl.gov.uk/StopPoint/490004297W/Arrivals?lines='
+      );
+      expect(result).toEqual(mockArrivals);
+    });
+  });
+
+  describe('isBus206Curtailed', () => {
+    it('should return false when arrivals include destination with Paddocks', async () => {
+      const mockArrivals = [
+        {
+          id: '1',
+          operationType: 1,
+          vehicleId: 'LK17DGU',
+          naptanId: '490004297W',
+          stationName: 'Brent Park Tesco',
+          lineId: '206',
+          lineName: '206',
+          platformName: 'T',
+          direction: 'outbound',
+          bearing: '204',
+          tripId: '344940',
+          baseVersion: '20260731',
+          destinationNaptanId: '490010715N',
+          destinationName: 'Wembley Park, The Paddocks',
+          timestamp: '2026-08-07T00:53:44Z',
+          timeToStation: 51,
+          currentLocation: '',
+          towards: 'Wembley Park',
+          expectedArrival: '2026-08-07T00:54:35Z',
+          timeToLive: '2026-08-07T00:55:05Z',
+          modeName: 'bus'
+        }
+      ];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockArrivals,
+      } as Response);
+
+      const result = await client.isBus206Curtailed();
+      expect(result).toBe(false);
+    });
+
+    it('should return true when arrivals exist but no destination with Paddocks', async () => {
+      const mockArrivals = [
+        {
+          id: '1',
+          operationType: 1,
+          vehicleId: 'LK17DGU',
+          naptanId: '490004297W',
+          stationName: 'Brent Park Tesco',
+          lineId: '206',
+          lineName: '206',
+          platformName: 'T',
+          direction: 'outbound',
+          bearing: '204',
+          tripId: '344940',
+          baseVersion: '20260731',
+          destinationNaptanId: '',
+          destinationName: 'Brent Park Tesco',
+          timestamp: '2026-08-07T00:53:44Z',
+          timeToStation: 51,
+          currentLocation: '',
+          towards: 'Brent Park Tesco',
+          expectedArrival: '2026-08-07T00:54:35Z',
+          timeToLive: '2026-08-07T00:55:05Z',
+          modeName: 'bus'
+        }
+      ];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockArrivals,
+      } as Response);
+
+      const result = await client.isBus206Curtailed();
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no arrivals (off-hours)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      } as Response);
+
+      const result = await client.isBus206Curtailed();
+      expect(result).toBe(false);
+    });
+  });
 });

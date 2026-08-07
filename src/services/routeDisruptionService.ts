@@ -1,18 +1,15 @@
 import { TflApiClient } from './tflApi';
 import { RouteDefinition, RouteDisruptions, ProcessedDisruption, GroupedDisruption } from '../types/tfl';
 import { ALL_ROUTES, ALL_LINE_IDS, getAllStopPointIds } from '../data/routes';
-import { WembleyEventService } from './wembleyEventService';
 
 /**
  * Service for managing route-based disruption data
  */
 export class RouteDisruptionService {
   private tflClient: TflApiClient;
-  private wembleyEventService: WembleyEventService;
 
-  constructor(tflClient?: TflApiClient, wembleyEventService?: WembleyEventService) {
+  constructor(tflClient?: TflApiClient) {
     this.tflClient = tflClient || new TflApiClient();
-    this.wembleyEventService = wembleyEventService || new WembleyEventService();
   }
 
   /**
@@ -113,8 +110,8 @@ export class RouteDisruptionService {
       (disruption.stationAtcoCode && routeStopIds.includes(disruption.stationAtcoCode))
     );
 
-    // Check for Wembley event day disruptions
-    const wembleyEventDisruptions = await this.getWembleyEventDisruptions(route);
+    // Check for bus 206 curtailment disruptions
+    const wembleyEventDisruptions = await this.getBus206CurtailmentDisruptions(route);
 
     // Group disruptions by description text (only TfL sourced disruptions)
     const tflDisruptions = [...relevantLineDisruptions, ...relevantStopDisruptions];
@@ -328,98 +325,83 @@ export class RouteDisruptionService {
   }
 
   /**
-   * Get Wembley event day disruptions for a specific route
-   * Only affects the inbound route from Liverpool Street to Kingfisher Way via Wembley Park
-   */
-  private async getWembleyEventDisruptions(route: RouteDefinition): Promise<ProcessedDisruption[]> {
+    * Get bus 206 curtailment disruptions for a specific route
+    * Uses TfL APIs to detect if bus 206 is curtailed (does not reach The Paddocks)
+    * Only affects the inbound route from Liverpool Street to Kingfisher Way via Wembley Park
+    */
+   private async getBus206CurtailmentDisruptions(route: RouteDefinition): Promise<ProcessedDisruption[]> {
     // Only check for the specific route: Liverpool Street to Kingfisher Way via Wembley Park (inbound)
     if (route.id !== 'route1-inbound') {
       return [];
     }
 
     try {
-      const today = new Date();
-      const { isEventDay, events } = await this.wembleyEventService.isWembleyEventDay(today);
+      const isCurtailed = await this.tflClient.isBus206Curtailed();
 
-      if (!isEventDay || events.length === 0) {
+      if (!isCurtailed) {
         return [];
       }
 
-      // Create disruption for each event (though typically there's one per day)
-      return events.map(event => {
-        const eventDate = new Date(event.date);
-        const startTime = new Date(eventDate);
-        startTime.setHours(13, 0, 0, 0); // 13:00 start time
-        
-        const endTime = new Date(eventDate);
-        endTime.setHours(23, 0, 0, 0); // 23:00 end time
+      const now = new Date();
 
-        const disruption: ProcessedDisruption = {
-          id: `wembley-event-${event.id}`,
-          type: 'Wembley Event Day Service Change',
-          description: `Bus 206 service disrupted due to Wembley Stadium event: ${event.title}. Bus 206 does not enter Wembley area - northernmost stop is Brent Park Tesco. Wembley Park Station to Kingfisher Way stops not served.`,
-          mode: 'bus',
-          startDate: startTime,
-          endDate: endTime,
-          isActive: this.isTimeInRange(new Date(), startTime, endTime),
-          source: 'line' as const,
-          lineId: '206',
-          affectedStopPoints: [
-            '490000257O', // Wembley Park Station (inbound)
-            '490G00006565', // Empire Way
-            '490G00007063', // Fulton Road
-            '490G00011818', // Rutherford Way
-            '490G00010593', // Olympic Way
-            '490G00006858', // First Way
-            '490G00013614', // Third Way
-            '490G00007753', // Hannah Close
-          ],
-          affectedRoutes: [{
-            $type: 'Tfl.Api.Presentation.Entities.AffectedRoute, Tfl.Api.Presentation.Entities',
-            id: '206-inbound-wembley',
-            name: 'Bus 206 Inbound',
-            direction: 'inbound',
-            originationName: 'Wembley Park Station',
-            destinationName: 'Kingfisher Way',
-            isEntireRouteSection: false,
-            routeSectionNaptanEntrySequence: [
-              {
-                $type: 'Tfl.Api.Presentation.Entities.RouteSectionNaptanEntry, Tfl.Api.Presentation.Entities',
-                ordinal: 1,
-                stopPoint: {
-                  $type: 'Tfl.Api.Presentation.Entities.StopPoint, Tfl.Api.Presentation.Entities',
-                  naptanId: '490000257O',
-                  id: '490000257O',
-                  commonName: 'Wembley Park Station',
-                  placeType: 'StopPoint',
-                  modes: ['bus'],
-                  icsCode: '',
-                  lineGroup: [],
-                  lineModeGroups: [],
-                  status: false,
-                  lat: 51.5635,
-                  lon: -0.2795,
-                  lines: [],
-                  additionalProperties: [],
-                  children: []
-                }
+      const disruption: ProcessedDisruption = {
+        id: `bus206-curtailment-${Date.now()}`,
+        type: 'Bus 206 Service Change',
+        description: 'Bus 206 is not reaching The Paddocks. Northernmost stop is Brent Park Tesco. Wembley Park Station to Kingfisher Way stops not served on the return route.',
+        mode: 'bus',
+        startDate: now,
+        endDate: now,
+        isActive: true,
+        source: 'line' as const,
+        lineId: '206',
+        affectedStopPoints: [
+          '490000257O', // Wembley Park Station (inbound)
+          '490G00006565', // Empire Way
+          '490G00007063', // Fulton Road
+          '490G00011818', // Rutherford Way
+          '490G00010593', // Olympic Way
+          '490G00006858', // First Way
+          '490G00013614', // Third Way
+          '490G00007753', // Hannah Close
+        ],
+        affectedRoutes: [{
+          $type: 'Tfl.Api.Presentation.Entities.AffectedRoute, Tfl.Api.Presentation.Entities',
+          id: '206-inbound-curtailed',
+          name: 'Bus 206 Inbound',
+          direction: 'inbound',
+          originationName: 'Wembley Park Station',
+          destinationName: 'Brent Park Tesco',
+          isEntireRouteSection: false,
+          routeSectionNaptanEntrySequence: [
+            {
+              $type: 'Tfl.Api.Presentation.Entities.RouteSectionNaptanEntry, Tfl.Api.Presentation.Entities',
+              ordinal: 1,
+              stopPoint: {
+                $type: 'Tfl.Api.Presentation.Entities.StopPoint, Tfl.Api.Presentation.Entities',
+                naptanId: '490000257O',
+                id: '490000257O',
+                commonName: 'Wembley Park Station',
+                placeType: 'StopPoint',
+                modes: ['bus'],
+                icsCode: '',
+                lineGroup: [],
+                lineModeGroups: [],
+                status: false,
+                lat: 51.5635,
+                lon: -0.2795,
+                lines: [],
+                additionalProperties: [],
+                children: []
               }
-            ]
-          }]
-        };
+            }
+          ]
+        }]
+      };
 
-        return disruption;
-      });
+      return [disruption];
     } catch (error) {
-      console.error('Error checking Wembley event disruptions:', error);
+      console.error('Error checking bus 206 curtailment:', error);
       return [];
     }
-  }
-
-  /**
-   * Check if current time is within the specified range
-   */
-  private isTimeInRange(current: Date, start: Date, end: Date): boolean {
-    return current >= start && current <= end;
   }
 }
