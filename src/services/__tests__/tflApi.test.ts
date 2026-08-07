@@ -9,6 +9,8 @@ describe('TflApiClient', () => {
   const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 
   beforeEach(() => {
+    jest.spyOn(console, 'warn').mockReturnValue(undefined);
+    jest.spyOn(console, 'error').mockReturnValue(undefined);
     client = new TflApiClient('https://api.test.tfl.gov.uk');
     mockFetch.mockClear();
   });
@@ -271,7 +273,6 @@ describe('TflApiClient', () => {
                   ]
                 }
               ],
-              affectedStops: [] // Usually empty in real API responses
             }
           }
         ]
@@ -321,6 +322,72 @@ describe('TflApiClient', () => {
 
       const result = client.processLineStatusResponses([mockLineStatusResponse]);
       expect(result).toHaveLength(0);
+    });
+
+    it('should include stopPoint.id when different from naptanId', () => {
+      const mockLineStatusResponse: TflLineStatusResponse = {
+        id: '94',
+        name: '94',
+        modeName: 'bus',
+        created: '2024-01-01T10:00:00Z',
+        modified: '2024-01-01T10:00:00Z',
+        lineStatuses: [
+          {
+            id: 0,
+            lineId: '94',
+            statusSeverity: 10,
+            statusSeverityDescription: 'Special Service',
+            created: '2024-01-01T08:00:00Z',
+            validityPeriods: [
+              { fromDate: '2024-01-01T08:00:00Z', toDate: '2024-01-01T18:00:00Z', isNow: true }
+            ],
+            disruption: {
+              category: 'RealTime',
+              categoryDescription: 'RealTime',
+              description: 'Route 94 not serving final stop',
+              created: '2024-01-01T08:00:00Z',
+              affectedRoutes: [
+                {
+                  id: '1394',
+                  name: 'Acton Green - Charles II Street',
+                  direction: 'outbound',
+                  originationName: 'Acton Green',
+                  destinationName: 'Charles II Street',
+                  isEntireRouteSection: true,
+                  routeSectionNaptanEntrySequence: [
+                    {
+                      ordinal: 0,
+                      stopPoint: {
+                        naptanId: '490003076C',
+                        id: 'DIFFERENT_ID',
+                        commonName: 'Acton Green',
+                        placeType: 'StopPoint',
+                        modes: [],
+                        icsCode: '1003076',
+                        stationNaptan: '490G00003076',
+                        lines: [],
+                        lineGroup: [],
+                        lineModeGroups: [],
+                        status: true,
+                        additionalProperties: [],
+                        children: [],
+                        lat: 0.0,
+                        lon: 0.0
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      };
+
+      const result = client.processLineStatusResponses([mockLineStatusResponse]);
+
+      expect(result[0].affectedStopPoints).toContain('DIFFERENT_ID');
+      expect(result[0].affectedStopPoints).toContain('490003076C');
+      expect(result[0].affectedStopPoints).toContain('490G00003076');
     });
   });
 
@@ -529,6 +596,91 @@ describe('TflApiClient', () => {
 
       const result = await client.isBus206Curtailed();
       expect(result).toBe(false);
+    });
+  });
+
+  describe('getStopPointArrivals error handling', () => {
+    it('should return empty array when fetch throws', async () => {
+      mockFetch.mockRejectedValueOnce(new TypeError('Network error'));
+
+      const result = await client.getStopPointArrivals('490004297W', ['206']);
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('processLineStatusResponses date-range activity', () => {
+    it('should mark disruption as active when validity period covers current time', () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2024-06-15T12:00:00Z'));
+
+      const mockLineStatusResponse: TflLineStatusResponse = {
+        id: '94',
+        name: '94',
+        modeName: 'bus',
+        created: '2024-01-01T10:00:00Z',
+        modified: '2024-01-01T10:00:00Z',
+        lineStatuses: [
+          {
+            id: 0,
+            lineId: '94',
+            statusSeverity: 10,
+            statusSeverityDescription: 'Special Service',
+            created: '2024-01-01T08:00:00Z',
+            validityPeriods: [
+              { fromDate: '2024-06-15T10:00:00Z', toDate: '2024-06-15T14:00:00Z', isNow: false }
+            ],
+            disruption: {
+              category: 'RealTime',
+              categoryDescription: 'RealTime',
+              description: 'Route 94 delayed',
+              created: '2024-01-01T08:00:00Z',
+              affectedRoutes: [],
+            }
+          }
+        ]
+      };
+
+      const result = client.processLineStatusResponses([mockLineStatusResponse]);
+
+      expect(result[0].isActive).toBe(true);
+      jest.useRealTimers();
+    });
+
+    it('should mark disruption as inactive when validity period has passed', () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2024-06-15T12:00:00Z'));
+
+      const mockLineStatusResponse: TflLineStatusResponse = {
+        id: '94',
+        name: '94',
+        modeName: 'bus',
+        created: '2024-01-01T10:00:00Z',
+        modified: '2024-01-01T10:00:00Z',
+        lineStatuses: [
+          {
+            id: 0,
+            lineId: '94',
+            statusSeverity: 10,
+            statusSeverityDescription: 'Special Service',
+            created: '2024-01-01T08:00:00Z',
+            validityPeriods: [
+              { fromDate: '2024-06-15T08:00:00Z', toDate: '2024-06-15T10:00:00Z', isNow: false }
+            ],
+            disruption: {
+              category: 'RealTime',
+              categoryDescription: 'RealTime',
+              description: 'Route 94 delayed',
+              created: '2024-01-01T08:00:00Z',
+              affectedRoutes: [],
+            }
+          }
+        ]
+      };
+
+      const result = client.processLineStatusResponses([mockLineStatusResponse]);
+
+      expect(result[0].isActive).toBe(true); // RealTime category keeps it active
+      jest.useRealTimers();
     });
   });
 });

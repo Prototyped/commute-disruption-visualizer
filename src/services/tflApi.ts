@@ -120,14 +120,8 @@ export class TflApiClient {
           }
         }
       }
-      
-      // Also check the optional top-level disruptions array (if present)
-      if (lineStatus.disruptions && lineStatus.disruptions.length > 0) {
-        // Handle legacy disruptions if present
-        console.warn('Legacy disruptions array found in line status response');
-      }
     }
-    
+
     return allDisruptions;
   }
 
@@ -189,13 +183,6 @@ export class TflApiClient {
       }
     }
     
-    // Extract from affectedStops (fallback, usually empty)
-    if (disruption.affectedStops) {
-      for (const stop of disruption.affectedStops) {
-        affectedStops.push(stop.id);
-      }
-    }
-    
     // Remove duplicates
     return [...new Set(affectedStops)];
   }
@@ -217,43 +204,6 @@ export class TflApiClient {
       stopPointId: disruption.atcoCode,
       stationAtcoCode: disruption.stationAtcoCode
     };
-  }
-
-  private inferModeFromDescription(description: string): string {
-    const desc = description.toLowerCase();
-    
-    if (desc.includes('central line') || desc.includes('metropolitan') || desc.includes('bakerloo') || 
-        desc.includes('circle') || desc.includes('hammersmith')) {
-      return 'tube';
-    }
-    
-    if (desc.includes('elizabeth line')) {
-      return 'rail';
-    }
-    
-    if (desc.includes('route ') || desc.includes('bus')) {
-      return 'bus';
-    }
-    
-    return 'unknown';
-  }
-
-  private extractLineIdFromDescription(description: string): string | undefined {
-    const desc = description.toLowerCase();
-    
-    // Try to extract line names from description
-    if (desc.includes('central line')) return 'central';
-    if (desc.includes('metropolitan')) return 'metropolitan';
-    if (desc.includes('bakerloo')) return 'bakerloo';
-    if (desc.includes('circle line')) return 'circle';
-    if (desc.includes('hammersmith')) return 'hammersmith-city';
-    if (desc.includes('elizabeth line')) return 'elizabeth';
-    
-    // Try to extract bus route numbers
-    const busMatch = desc.match(/route (\d+)/);
-    if (busMatch) return busMatch[1];
-    
-    return undefined;
   }
 
   private isLineStatusDisruptionActive(status: TflLineStatus): boolean {

@@ -22,12 +22,9 @@ export interface TflLineStatusResponse {
     id: string;
     name: string;
     modeName: string;
-    disruptions?: TflLineDisruption[];
     created: string;
     modified: string;
     lineStatuses: TflLineStatus[];
-    routeSections?: TflRouteSection[];
-    serviceTypes?: TflServiceType[];
     crowding?: unknown;
 }
 
@@ -57,7 +54,6 @@ export interface TflDisruptionDetail {
     description: string;
     created: string;
     affectedRoutes?: TflAffectedRoute[];
-    affectedStops?: TflAffectedStop[];
     closureText?: string;
 }
 
@@ -97,122 +93,6 @@ export interface TflStopPointDetail {
     children: unknown[];
     lat: number;
     lon: number;
-}
-
-export interface TflAffectedStop {
-    $type?: string;
-    id: string;
-    commonName: string;
-    placeType: string;
-    modes: string[];
-    stopType?: string;
-    status: boolean;
-}
-
-export interface TflRouteSection {
-    $type?: string;
-    originationName: string;
-    destinationName: string;
-}
-
-export interface TflServiceType {
-    $type?: string;
-    name: string;
-    uri: string;
-}
-
-// Legacy interface for Line Disruption API (to be removed)
-export interface TflLineDisruption {
-    $type?: string;
-    category: string;
-    type: string;
-    categoryDescription: string;
-    description: string;
-    created?: string;
-    lastUpdate?: string;
-    affectedRoutes: Array<{
-        $type: string;
-        id: string;
-        name: string;
-        direction?: string;
-        originationName: string;
-        destinationName: string;
-        isActive: boolean;
-    }>;
-    affectedStops: Array<{
-        $type: string;
-        id: string;
-        commonName: string;
-        placeType: string;
-        modes: string[];
-        stopType: string;
-        status: boolean;
-    }>;
-    closureText?: string;
-}
-
-// Union type for any TfL disruption
-export type TflDisruption = TflStopPointDisruption | TflLineDisruption;
-
-export interface StopPoint {
-  id: string;
-  name: string;
-  lat?: number;
-  lon?: number;
-  stopType?: string;
-  accessibilitySummary?: string;
-  hasDisruption?: boolean;
-  lines?: LineInfo[];
-  lineGroup?: LineGroup[];
-  lineModeGroups?: LineModeGroup[];
-}
-
-export interface LineInfo {
-    id: string;
-    name: string;
-    modeName: string;
-    crowding?: {
-        $type: string;
-        type: string;
-    };
-    disruptions: TflLineDisruption[];
-    created?: string;
-    modified?: string;
-    lineStatuses: Array<{
-        $type: string;
-        id: number;
-        lineId: string;
-        statusSeverity: number;
-        statusSeverityDescription: string;
-        reason?: string;
-        validityPeriods: Array<{
-            $type: string;
-            fromDate: string;
-            toDate: string;
-            isNow: boolean;
-        }>;
-    }>;
-    routeSections: Array<{
-        $type: string;
-        originationName: string;
-        destinationName: string;
-    }>;
-    serviceTypes: Array<{
-        $type: string;
-        name: string;
-        uri: string;
-    }>;
-}
-
-export interface LineGroup {
-  naptanIdReference: string;
-  stationAtcoCode: string;
-  lineIdentifier: string[];
-}
-
-export interface LineModeGroup {
-  modeName: string;
-  lineIdentifier: string[];
 }
 
 // Route definitions for our application

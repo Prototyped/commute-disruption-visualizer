@@ -2,7 +2,6 @@ import { RouteDisruptionService } from '../routeDisruptionService';
 import { TflApiClient } from '../tflApi';
 import { RouteDefinition, ProcessedDisruption } from '../../types/tfl';
 
-// Mock the dependencies
 jest.mock('../tflApi');
 
 describe('RouteDisruptionService - Bus 206 Curtailment', () => {
@@ -60,8 +59,11 @@ describe('RouteDisruptionService - Bus 206 Curtailment', () => {
   };
 
   beforeEach(() => {
+    jest.spyOn(console, 'error').mockReturnValue(undefined);
+    jest.spyOn(console, 'warn').mockReturnValue(undefined);
+
     mockTflClient = new TflApiClient() as jest.Mocked<TflApiClient>;
-    
+
     // Mock basic TfL responses
     mockTflClient.getLineStatus.mockResolvedValue([]);
     mockTflClient.getStopPointDisruptions.mockResolvedValue([]);
@@ -79,7 +81,7 @@ describe('RouteDisruptionService - Bus 206 Curtailment', () => {
       const result = await service['mapDisruptionsToRoute'](mockRoute1Inbound, [], []);
 
       expect(result.wembleyEventDisruptions).toHaveLength(1);
-      
+
       const disruption = result.wembleyEventDisruptions[0];
       expect(disruption.id).toContain('bus206-curtailment');
       expect(disruption.type).toBe('Bus 206 Service Change');
@@ -137,13 +139,13 @@ describe('RouteDisruptionService - Bus 206 Curtailment', () => {
 
       // Should have curtailment disruption in separate field
       expect(result.wembleyEventDisruptions).toHaveLength(1);
-      
+
       // Grouped disruptions should only contain TfL disruptions
       expect(result.groupedDisruptions).toHaveLength(1);
       const group = result.groupedDisruptions[0];
       expect(group.originalDisruptions).toHaveLength(1);
       expect(group.originalDisruptions[0].id).toBe('tfl-disruption-1');
-      
+
       // Curtailment disruptions should NOT be in grouped view
       const curtailmentGroup = result.groupedDisruptions.find(group =>
         group.originalDisruptions.some(d => d.id.startsWith('bus206-curtailment'))
